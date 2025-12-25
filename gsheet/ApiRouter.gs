@@ -118,6 +118,20 @@ function routeGetRequest(action, params) {
     case "getHolidays":
       return KalenderService.getHolidays(params.year);
 
+    // ---- System Status ----
+    case "getStatus":
+      return getSystemStatus();
+
+    // ---- Tukang by Tipe ----
+    case "getTukangByTipe":
+      return TukangService.getByTipe(params.tipe);
+
+    // ---- Setup Otomatis ----
+    case "setupSpreadsheet":
+      return setupSpreadsheet();
+    case "checkSetupStatus":
+      return ApiResponse.success(checkSetupStatus());
+
     default:
       return ApiResponse.error(`Unknown action: ${action}`);
   }
@@ -180,6 +194,10 @@ function routePostRequest(action, params, data) {
     case "deleteHoliday":
       return KalenderService.delete(params.id);
 
+    // ---- Upload Foto Pegawai ----
+    case "uploadFotoPegawai":
+      return TukangService.uploadFoto(params.id, data.base64, data.mimeType);
+
     default:
       return ApiResponse.error(`Unknown action: ${action}`);
   }
@@ -202,4 +220,71 @@ function getAllSheetsData() {
     belanja: BelanjaService.getAll().data || [],
     kalender: KalenderService.getAll().data || [],
   });
+}
+
+/**
+ * Get system status - check sheet structure and Drive folder
+ * @returns {Object}
+ */
+function getSystemStatus() {
+  try {
+    const ss = getSpreadsheet();
+    const sheets = {};
+
+    // Check all configured sheets
+    for (const [key, sheetName] of Object.entries(CONFIG.SHEETS)) {
+      const sheet = ss.getSheetByName(sheetName);
+      if (sheet) {
+        const headers = sheet
+          .getRange(1, 1, 1, sheet.getLastColumn())
+          .getValues()[0];
+        const rowCount = Math.max(0, sheet.getLastRow() - 1);
+        sheets[key.toLowerCase()] = {
+          exists: true,
+          name: sheetName,
+          headers: headers,
+          rowCount: rowCount,
+          expectedHeaders: CONFIG.HEADERS[key] || [],
+        };
+      } else {
+        sheets[key.toLowerCase()] = {
+          exists: false,
+          name: sheetName,
+          expectedHeaders: CONFIG.HEADERS[key] || [],
+        };
+      }
+    }
+
+    // Check foto folder
+    let fotoFolder = null;
+    try {
+      const folders = DriveApp.getFoldersByName(FOTO_FOLDER_NAME);
+      if (folders.hasNext()) {
+        const folder = folders.next();
+        fotoFolder = {
+          exists: true,
+          name: FOTO_FOLDER_NAME,
+          id: folder.getId(),
+          url: folder.getUrl(),
+        };
+      } else {
+        fotoFolder = {
+          exists: false,
+          name: FOTO_FOLDER_NAME,
+        };
+      }
+    } catch (e) {
+      fotoFolder = { error: e.message };
+    }
+
+    return ApiResponse.success({
+      spreadsheetId: CONFIG.SPREADSHEET_ID,
+      spreadsheetName: ss.getName(),
+      sheets: sheets,
+      fotoFolder: fotoFolder,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    return ApiResponse.error(error.message);
+  }
 }

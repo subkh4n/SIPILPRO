@@ -12,6 +12,8 @@ import Pengaturan from "./pages/Pengaturan";
 
 // Master Data Pages
 import Pegawai from "./pages/master/Pegawai";
+import TambahPegawai from "./pages/master/TambahPegawai";
+import EditPegawai from "./pages/master/EditPegawai";
 import Vendor from "./pages/master/Vendor";
 import Kalender from "./pages/master/Kalender";
 
@@ -82,6 +84,8 @@ function App() {
 
             {/* Master Data */}
             <Route path="/master/pegawai" element={<Pegawai />} />
+            <Route path="/master/pegawai/tambah" element={<TambahPegawai />} />
+            <Route path="/master/pegawai/edit/:id" element={<EditPegawai />} />
             <Route path="/master/proyek" element={<Proyek />} />
             <Route path="/master/vendor" element={<Vendor />} />
             <Route path="/master/kalender" element={<Kalender />} />

@@ -178,3 +178,98 @@ function objectToRow(obj, headers) {
     return value !== undefined ? value : "";
   });
 }
+
+// ============================================
+// GOOGLE DRIVE - FOTO UTILITIES
+// ============================================
+
+// Nama folder untuk menyimpan foto pegawai
+const FOTO_FOLDER_NAME = "SIPILPRO_Foto_Pegawai";
+
+/**
+ * Get or create folder for employee photos
+ * @returns {GoogleAppsScript.Drive.Folder}
+ */
+function getFotoFolder() {
+  const folders = DriveApp.getFoldersByName(FOTO_FOLDER_NAME);
+  if (folders.hasNext()) {
+    return folders.next();
+  }
+  // Create new folder if doesn't exist
+  const folder = DriveApp.createFolder(FOTO_FOLDER_NAME);
+  folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return folder;
+}
+
+/**
+ * Upload foto from base64 string
+ * @param {string} base64Data - Base64 encoded image data (without data:image prefix)
+ * @param {string} fileName - File name for the image
+ * @param {string} mimeType - MIME type (e.g., 'image/jpeg', 'image/png')
+ * @returns {Object} - {url, fileId, thumbnailUrl}
+ */
+function uploadFotoFromBase64(base64Data, fileName, mimeType) {
+  try {
+    const folder = getFotoFolder();
+
+    // Decode base64 and create blob
+    const decoded = Utilities.base64Decode(base64Data);
+    const blob = Utilities.newBlob(decoded, mimeType, fileName);
+
+    // Create file in Drive
+    const file = folder.createFile(blob);
+
+    // Set public sharing
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    const fileId = file.getId();
+
+    return {
+      fileId: fileId,
+      url: file.getUrl(),
+      // Direct link for displaying image
+      thumbnailUrl: `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`,
+      directUrl: `https://drive.google.com/uc?export=view&id=${fileId}`,
+    };
+  } catch (error) {
+    throw new Error("Gagal upload foto: " + error.message);
+  }
+}
+
+/**
+ * Delete foto from Google Drive by file ID
+ * @param {string} fileId
+ * @returns {boolean}
+ */
+function deleteFotoById(fileId) {
+  try {
+    const file = DriveApp.getFileById(fileId);
+    file.setTrashed(true);
+    return true;
+  } catch (error) {
+    console.log("Foto tidak ditemukan atau sudah dihapus: " + fileId);
+    return false;
+  }
+}
+
+/**
+ * Extract file ID from Google Drive URL
+ * @param {string} url
+ * @returns {string|null}
+ */
+function extractFileIdFromUrl(url) {
+  if (!url) return null;
+
+  // Match patterns like:
+  // https://drive.google.com/file/d/FILE_ID/view
+  // https://drive.google.com/uc?id=FILE_ID
+  // https://drive.google.com/thumbnail?id=FILE_ID
+  const patterns = [/\/file\/d\/([a-zA-Z0-9_-]+)/, /[?&]id=([a-zA-Z0-9_-]+)/];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+
+  return null;
+}

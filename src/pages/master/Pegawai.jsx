@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useData } from "../../context/DataContext";
 import { formatCurrency } from "../../utils/helpers";
 import {
@@ -18,30 +19,20 @@ import {
   ChevronRight,
   TrendingUp,
   X,
-  Save,
   AlertTriangle,
 } from "lucide-react";
 
 export default function Pegawai() {
-  const { workers, addWorker, updateWorker, deleteWorker, refreshData } =
-    useData();
+  const navigate = useNavigate();
+  const { workers, deleteWorker, refreshData } = useData();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    skill: "Pemula",
-    dailyWage: "",
-    status: "active",
-  });
 
   // Modal states
   const [viewModal, setViewModal] = useState(null);
-  const [editModal, setEditModal] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [editFormData, setEditFormData] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
   const itemsPerPage = 5;
@@ -52,11 +43,12 @@ export default function Pegawai() {
       ...worker,
       nip: worker.nip || `NIP: 202300${index + 1}`,
       jabatan:
-        worker.skill === "Ahli"
+        worker.jabatan ||
+        (worker.skill === "Ahli"
           ? "Mandor Lapangan"
           : worker.skill === "Terampil"
           ? "Tukang Batu"
-          : "Helper",
+          : "Helper"),
       tipe: worker.tipe || ["Tetap", "Kontrak", "Harian"][index % 3],
     }));
   }, [workers]);
@@ -104,59 +96,14 @@ export default function Pegawai() {
       ? Math.round((activeEmployees / totalEmployees) * 100)
       : 0;
 
-  // Handle Add form submit
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    try {
-      await addWorker({
-        name: formData.name,
-        skill: formData.skill,
-        dailyWage: parseFloat(formData.dailyWage) || 0,
-        status: formData.status,
-      });
-      setShowForm(false);
-      setFormData({
-        name: "",
-        skill: "Pemula",
-        dailyWage: "",
-        status: "active",
-      });
-      refreshData();
-    } catch (err) {
-      alert("Gagal menambah pegawai: " + err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Handle View
   const handleView = (employee) => {
     setViewModal(employee);
   };
 
-  // Handle Edit
+  // Handle Edit - Navigate to edit page
   const handleEdit = (employee) => {
-    setEditFormData({
-      name: employee.name,
-      skill: employee.skill,
-      dailyWage: employee.dailyWage || 0,
-      status: employee.status,
-    });
-    setEditModal(employee);
-  };
-
-  const handleEditSubmit = async () => {
-    setIsLoading(true);
-    try {
-      await updateWorker(editModal.id, editFormData);
-      setEditModal(null);
-      refreshData();
-    } catch (err) {
-      alert("Gagal update pegawai: " + err.message);
-    } finally {
-      setIsLoading(false);
-    }
+    navigate(`/master/pegawai/edit/${employee.id}`);
   };
 
   // Handle Delete
@@ -186,6 +133,17 @@ export default function Pegawai() {
     return colors[index];
   };
 
+  // Format date for display
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "-";
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
   return (
     <div className="animate-in">
       {/* Page Header */}
@@ -207,7 +165,7 @@ export default function Pegawai() {
         </div>
         <button
           className="btn btn-primary"
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => navigate("/master/pegawai/tambah")}
         >
           <Plus size={18} />
           Tambah Pegawai
@@ -284,118 +242,6 @@ export default function Pegawai() {
         </div>
       </div>
 
-      {/* Add Form Modal */}
-      {showForm && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.6)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-          onClick={() => setShowForm(false)}
-        >
-          <div
-            className="card"
-            style={{
-              width: "100%",
-              maxWidth: "500px",
-              margin: "var(--space-4)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="card-header">
-              <h3 className="card-title">Tambah Pegawai Baru</h3>
-            </div>
-            <form onSubmit={handleSubmit}>
-              <div
-                className="grid gap-4"
-                style={{ gridTemplateColumns: "1fr 1fr" }}
-              >
-                <div className="form-group">
-                  <label className="form-label">Nama Lengkap</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Contoh: Budi Santoso"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, name: e.target.value }))
-                    }
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">NIP</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Contoh: 2023001"
-                    value={formData.nip}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, nip: e.target.value }))
-                    }
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Jabatan</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Contoh: Mandor Lapangan"
-                    value={formData.jabatan}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        jabatan: e.target.value,
-                      }))
-                    }
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Tipe Karyawan</label>
-                  <select
-                    className="form-select"
-                    value={formData.tipe}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, tipe: e.target.value }))
-                    }
-                  >
-                    <option value="Tetap">Tetap</option>
-                    <option value="Kontrak">Kontrak</option>
-                    <option value="Harian">Harian</option>
-                  </select>
-                </div>
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  gap: "var(--space-3)",
-                  marginTop: "var(--space-5)",
-                }}
-              >
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-full"
-                  onClick={() => setShowForm(false)}
-                >
-                  Batal
-                </button>
-                <button type="submit" className="btn btn-primary btn-full">
-                  Simpan Pegawai
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* Main Content */}
       <div className="grid gap-6" style={{ gridTemplateColumns: "1fr 280px" }}>
         {/* Table Section */}
@@ -446,17 +292,17 @@ export default function Pegawai() {
             </select>
 
             {/* Status Filter */}
-            <button
-              className="btn btn-secondary"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "var(--space-2)",
-              }}
+            <select
+              className="form-select"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              style={{ minWidth: "130px" }}
             >
-              <Filter size={16} />
-              Filter
-            </button>
+              <option value="all">Semua Status</option>
+              <option value="active">Aktif</option>
+              <option value="inactive">Non-Aktif</option>
+              <option value="cuti">Cuti</option>
+            </select>
           </div>
 
           {/* Table */}
@@ -482,21 +328,44 @@ export default function Pegawai() {
                           gap: "var(--space-3)",
                         }}
                       >
+                        {/* Avatar with foto or initials */}
                         <div
                           style={{
                             width: 40,
                             height: 40,
                             borderRadius: "var(--radius-full)",
-                            background: getAvatarColor(employee.name),
+                            background: employee.foto
+                              ? "transparent"
+                              : getAvatarColor(employee.name),
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             color: "white",
                             fontSize: "var(--text-sm)",
                             fontWeight: "600",
+                            overflow: "hidden",
                           }}
                         >
-                          {employee.name.charAt(0).toUpperCase()}
+                          {employee.foto ? (
+                            <img
+                              src={employee.foto}
+                              alt={employee.name}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
+                              onError={(e) => {
+                                e.target.style.display = "none";
+                                e.target.parentElement.style.background =
+                                  getAvatarColor(employee.name);
+                                e.target.parentElement.innerHTML =
+                                  employee.name.charAt(0).toUpperCase();
+                              }}
+                            />
+                          ) : (
+                            employee.name.charAt(0).toUpperCase()
+                          )}
                         </div>
                         <div>
                           <div style={{ fontWeight: "500" }}>
@@ -535,9 +404,12 @@ export default function Pegawai() {
                           gap: "6px",
                           fontSize: "var(--text-sm)",
                           color:
+                            employee.status === "active" ||
                             employee.status === "aktif"
                               ? "var(--success-400)"
-                              : "var(--warning-400)",
+                              : employee.status === "cuti"
+                              ? "var(--warning-400)"
+                              : "var(--text-muted)",
                         }}
                       >
                         <span
@@ -546,12 +418,20 @@ export default function Pegawai() {
                             height: 8,
                             borderRadius: "50%",
                             background:
+                              employee.status === "active" ||
                               employee.status === "aktif"
                                 ? "var(--success-400)"
-                                : "var(--warning-400)",
+                                : employee.status === "cuti"
+                                ? "var(--warning-400)"
+                                : "var(--text-muted)",
                           }}
                         />
-                        {employee.status === "aktif" ? "Aktif" : "Cuti"}
+                        {employee.status === "active" ||
+                        employee.status === "aktif"
+                          ? "Aktif"
+                          : employee.status === "cuti"
+                          ? "Cuti"
+                          : "Non-Aktif"}
                       </span>
                     </td>
                     <td style={{ textAlign: "center" }}>
@@ -609,7 +489,7 @@ export default function Pegawai() {
             >
               Menampilkan{" "}
               <strong>
-                {(currentPage - 1) * itemsPerPage + 1}-
+                {Math.min((currentPage - 1) * itemsPerPage + 1, filteredEmployees.length)}-
                 {Math.min(currentPage * itemsPerPage, filteredEmployees.length)}
               </strong>{" "}
               dari <strong>{filteredEmployees.length}</strong> data
@@ -655,7 +535,7 @@ export default function Pegawai() {
                 onClick={() =>
                   setCurrentPage((p) => Math.min(totalPages, p + 1))
                 }
-                disabled={currentPage === totalPages}
+                disabled={currentPage === totalPages || totalPages === 0}
               >
                 <ChevronRight size={16} />
               </button>
@@ -868,89 +748,158 @@ export default function Pegawai() {
                 <X size={20} />
               </button>
             </div>
+
+            {/* Photo and Name */}
             <div
               style={{
                 display: "flex",
-                flexDirection: "column",
+                alignItems: "center",
+                gap: "var(--space-4)",
+                marginBottom: "var(--space-5)",
+              }}
+            >
+              <div
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: "var(--radius-lg)",
+                  background: viewModal.foto
+                    ? "transparent"
+                    : getAvatarColor(viewModal.name),
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "white",
+                  fontSize: "var(--text-2xl)",
+                  fontWeight: "600",
+                  overflow: "hidden",
+                }}
+              >
+                {viewModal.foto ? (
+                  <img
+                    src={viewModal.foto}
+                    alt={viewModal.name}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                ) : (
+                  viewModal.name.charAt(0).toUpperCase()
+                )}
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: "var(--text-lg)",
+                    fontWeight: "600",
+                    marginBottom: "var(--space-1)",
+                  }}
+                >
+                  {viewModal.name}
+                </div>
+                <div style={{ color: "var(--text-muted)" }}>
+                  {viewModal.jabatan}
+                </div>
+                <span
+                  className={`badge ${
+                    viewModal.tipe === "Tetap"
+                      ? "badge-primary"
+                      : viewModal.tipe === "Kontrak"
+                      ? "badge-warning"
+                      : "badge-secondary"
+                  }`}
+                  style={{ marginTop: "var(--space-2)" }}
+                >
+                  {viewModal.tipe}
+                </span>
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
                 gap: "var(--space-3)",
               }}
             >
               <div>
-                <div
-                  style={{
-                    fontSize: "var(--text-xs)",
-                    color: "var(--text-muted)",
-                    marginBottom: "var(--space-1)",
-                  }}
-                >
-                  ID
+                <div className="form-label" style={{ marginBottom: "2px" }}>
+                  NIP
                 </div>
-                <div style={{ fontWeight: "500" }}>{viewModal.id}</div>
+                <div style={{ fontWeight: "500" }}>{viewModal.nip || "-"}</div>
               </div>
               <div>
-                <div
-                  style={{
-                    fontSize: "var(--text-xs)",
-                    color: "var(--text-muted)",
-                    marginBottom: "var(--space-1)",
-                  }}
-                >
-                  Nama
-                </div>
-                <div style={{ fontWeight: "500" }}>{viewModal.name}</div>
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: "var(--text-xs)",
-                    color: "var(--text-muted)",
-                    marginBottom: "var(--space-1)",
-                  }}
-                >
-                  Keahlian
-                </div>
-                <div style={{ fontWeight: "500" }}>{viewModal.skill}</div>
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: "var(--text-xs)",
-                    color: "var(--text-muted)",
-                    marginBottom: "var(--space-1)",
-                  }}
-                >
-                  Upah Harian
-                </div>
-                <div className="font-mono" style={{ fontWeight: "500" }}>
-                  {formatCurrency(viewModal.dailyWage || 0)}
-                </div>
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: "var(--text-xs)",
-                    color: "var(--text-muted)",
-                    marginBottom: "var(--space-1)",
-                  }}
-                >
+                <div className="form-label" style={{ marginBottom: "2px" }}>
                   Status
                 </div>
                 <span
-                  className={`badge ${
-                    viewModal.status === "active"
-                      ? "badge-success"
-                      : "badge-secondary"
-                  }`}
+                  style={{
+                    color:
+                      viewModal.status === "active" ||
+                      viewModal.status === "aktif"
+                        ? "var(--success-400)"
+                        : "var(--warning-400)",
+                  }}
                 >
-                  {viewModal.status}
+                  {viewModal.status === "active" ||
+                  viewModal.status === "aktif"
+                    ? "Aktif"
+                    : viewModal.status === "cuti"
+                    ? "Cuti"
+                    : "Non-Aktif"}
                 </span>
               </div>
+              <div>
+                <div className="form-label" style={{ marginBottom: "2px" }}>
+                  Keahlian
+                </div>
+                <div style={{ fontWeight: "500" }}>
+                  {viewModal.skill || "-"}
+                </div>
+              </div>
+              <div>
+                <div className="form-label" style={{ marginBottom: "2px" }}>
+                  No. Telepon
+                </div>
+                <div style={{ fontWeight: "500" }}>
+                  {viewModal.phone || "-"}
+                </div>
+              </div>
+              <div>
+                <div className="form-label" style={{ marginBottom: "2px" }}>
+                  Upah Normal
+                </div>
+                <div className="font-mono" style={{ fontWeight: "500" }}>
+                  {formatCurrency(viewModal.rateNormal || 0)}
+                </div>
+              </div>
+              <div>
+                <div className="form-label" style={{ marginBottom: "2px" }}>
+                  Tanggal Masuk
+                </div>
+                <div style={{ fontWeight: "500" }}>
+                  {formatDate(viewModal.tanggalMasuk)}
+                </div>
+              </div>
             </div>
+
+            {viewModal.alamat && (
+              <div style={{ marginTop: "var(--space-3)" }}>
+                <div className="form-label" style={{ marginBottom: "2px" }}>
+                  Alamat
+                </div>
+                <div style={{ fontWeight: "500" }}>{viewModal.alamat}</div>
+              </div>
+            )}
+
             <div
               style={{
                 marginTop: "var(--space-6)",
                 display: "flex",
                 justifyContent: "flex-end",
+                gap: "var(--space-3)",
               }}
             >
               <button
@@ -959,147 +908,15 @@ export default function Pegawai() {
               >
                 Tutup
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Modal */}
-      {editModal && (
-        <div
-          className="modal-overlay"
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0, 0, 0, 0.7)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-        >
-          <div
-            className="modal-content"
-            style={{
-              background: "var(--bg-secondary)",
-              borderRadius: "var(--radius-xl)",
-              padding: "var(--space-6)",
-              width: "100%",
-              maxWidth: "500px",
-              border: "1px solid var(--border-color)",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "var(--space-4)",
-              }}
-            >
-              <h3 style={{ fontSize: "var(--text-lg)", fontWeight: "600" }}>
-                Edit Pegawai
-              </h3>
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => setEditModal(null)}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "var(--space-4)",
-              }}
-            >
-              <div className="form-group">
-                <label className="form-label">Nama</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={editFormData.name || ""}
-                  onChange={(e) =>
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      name: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Keahlian</label>
-                <select
-                  className="form-select"
-                  value={editFormData.skill || "Pemula"}
-                  onChange={(e) =>
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      skill: e.target.value,
-                    }))
-                  }
-                >
-                  <option value="Pemula">Pemula</option>
-                  <option value="Terampil">Terampil</option>
-                  <option value="Ahli">Ahli</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Upah Harian</label>
-                <input
-                  type="number"
-                  className="form-input"
-                  value={editFormData.dailyWage || ""}
-                  onChange={(e) =>
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      dailyWage: parseFloat(e.target.value) || 0,
-                    }))
-                  }
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Status</label>
-                <select
-                  className="form-select"
-                  value={editFormData.status || "active"}
-                  onChange={(e) =>
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      status: e.target.value,
-                    }))
-                  }
-                >
-                  <option value="active">Active</option>
-                  <option value="non active">Non Active</option>
-                </select>
-              </div>
-            </div>
-            <div
-              style={{
-                marginTop: "var(--space-6)",
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: "var(--space-3)",
-              }}
-            >
-              <button
-                className="btn btn-secondary"
-                onClick={() => setEditModal(null)}
-              >
-                Batal
-              </button>
               <button
                 className="btn btn-primary"
-                onClick={handleEditSubmit}
-                disabled={isLoading}
+                onClick={() => {
+                  setViewModal(null);
+                  handleEdit(viewModal);
+                }}
               >
-                <Save size={16} />
-                {isLoading ? "Menyimpan..." : "Simpan"}
+                <Edit2 size={16} />
+                Edit
               </button>
             </div>
           </div>

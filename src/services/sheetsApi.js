@@ -124,6 +124,29 @@ export const sheetsApi = {
 
   /** Mark purchase as paid */
   payBelanja: (id, paidDate) => postToSheet("payBelanja", { paidDate }, { id }),
+
+  // ========== NEW METHODS ==========
+
+  /** Get worker by ID */
+  getWorkerById: (id) => fetchFromSheet("getTukangById", { id }),
+
+  /** Get workers by type (Tetap/Kontrak/Harian) */
+  getWorkersByTipe: (tipe) => fetchFromSheet("getTukangByTipe", { tipe }),
+
+  /** Upload foto pegawai */
+  uploadFotoPegawai: (id, base64, mimeType) =>
+    postToSheet("uploadFotoPegawai", { base64, mimeType }, { id }),
+
+  /** Get system status - check sheet structure */
+  getStatus: () => fetchFromSheet("getStatus"),
+
+  /** Setup spreadsheet otomatis - update headers dan buat folder foto */
+  setupSpreadsheet: () => fetchFromSheet("setupSpreadsheet"),
+
+  /** Check setup status - lihat kolom yang perlu ditambahkan */
+  checkSetupStatus: () => fetchFromSheet("checkSetupStatus"),
 };
 
 export default sheetsApi;
+
+

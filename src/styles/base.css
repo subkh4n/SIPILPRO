@@ -1058,7 +1058,8 @@ b {
 .animate-pulse {
   animation: pulse 2s infinite;
 }
-.animate-spin {
+.animate-spin,
+.spin {
   animation: spin 1s linear infinite;
 }
 
