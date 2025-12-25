@@ -1,136 +1,220 @@
-import { useState, useMemo } from 'react';
-import { useData } from '../context/DataContext';
+import { useState, useMemo } from "react";
+import { useData } from "../context/DataContext";
 import {
   isHoliday,
-  formatDateID,
+  formatCurrency,
   calculateDuration,
   calculateWage,
-  getRateDescription,
-  formatCurrency
-} from '../utils/helpers';
-import { format } from 'date-fns';
-import {
-  Calendar,
-  Plus,
-  Trash2,
-  AlertCircle,
-  Clock,
-  Save,
-  CheckCircle
-} from 'lucide-react';
+} from "../utils/helpers";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+import { Copy, Plus, Trash2, ChevronDown } from "lucide-react";
 
 export default function Absensi() {
   const { workers, projects, addAttendance } = useData();
 
-  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [workerId, setWorkerId] = useState('');
-  const [sessions, setSessions] = useState([
-    { id: 1, projectId: '', start: '08:00', end: '12:00' }
+  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [globalProject, setGlobalProject] = useState("all");
+
+  // Initialize rows with empty worker slots
+  const [rows, setRows] = useState([
+    {
+      id: 1,
+      workerId: "",
+      projectId: "",
+      start: "",
+      end: "",
+      breakTime: 0,
+      rateType: "Normal",
+    },
   ]);
-  const [saved, setSaved] = useState(false);
 
   // Check if selected date is holiday
   const holidayInfo = useMemo(() => isHoliday(date), [date]);
 
-  // Get selected worker
-  const selectedWorker = useMemo(() =>
-    workers.find(w => w.id === workerId),
-    [workerId, workers]
-  );
+  // Active projects
+  const activeProjects = projects.filter((p) => p.status === "active");
 
-  // Calculate session durations and totals
-  const calculations = useMemo(() => {
-    const sessionsWithDuration = sessions.map(s => ({
-      ...s,
-      duration: calculateDuration(s.start, s.end)
-    }));
+  // Calculate row data
+  const calculatedRows = useMemo(() => {
+    return rows.map((row) => {
+      const worker = workers.find((w) => w.id === row.workerId);
+      const duration =
+        calculateDuration(row.start, row.end) - row.breakTime / 60;
+      const totalHours = Math.max(0, duration);
 
-    const totalHours = sessionsWithDuration.reduce((sum, s) => sum + s.duration, 0);
+      let estWage = 0;
+      if (worker && totalHours > 0) {
+        estWage = calculateWage(totalHours, worker, row.rateType === "Lembur");
+      }
 
-    let wage = 0;
-    let rateInfo = null;
+      return {
+        ...row,
+        totalHours: totalHours > 0 ? totalHours.toFixed(1) : "0",
+        estWage,
+        worker,
+      };
+    });
+  }, [rows, workers]);
 
-    if (selectedWorker && totalHours > 0) {
-      wage = calculateWage(totalHours, selectedWorker, holidayInfo.isHoliday);
-      rateInfo = getRateDescription(selectedWorker, holidayInfo.isHoliday, totalHours);
+  // Add new row
+  const addRow = () => {
+    const newId = Math.max(...rows.map((r) => r.id), 0) + 1;
+    setRows([
+      ...rows,
+      {
+        id: newId,
+        workerId: "",
+        projectId: globalProject !== "all" ? globalProject : "",
+        start: "",
+        end: "",
+        breakTime: 0,
+        rateType: "Normal",
+      },
+    ]);
+  };
+
+  // Remove row
+  const removeRow = (id) => {
+    if (rows.length > 1) {
+      setRows(rows.filter((r) => r.id !== id));
     }
-
-    return { sessionsWithDuration, totalHours, wage, rateInfo };
-  }, [sessions, selectedWorker, holidayInfo]);
-
-  // Add new session
-  const addSession = () => {
-    const newId = Math.max(...sessions.map(s => s.id)) + 1;
-    setSessions([...sessions, {
-      id: newId,
-      projectId: '',
-      start: '13:00',
-      end: '17:00'
-    }]);
   };
 
-  // Remove session
-  const removeSession = (id) => {
-    if (sessions.length > 1) {
-      setSessions(sessions.filter(s => s.id !== id));
+  // Update row field
+  const updateRow = (id, field, value) => {
+    setRows(rows.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
+  };
+
+  // Apply global project filter
+  const applyFilter = () => {
+    if (globalProject !== "all") {
+      setRows(rows.map((r) => ({ ...r, projectId: globalProject })));
     }
   };
 
-  // Update session field
-  const updateSession = (id, field, value) => {
-    setSessions(sessions.map(s =>
-      s.id === id ? { ...s, [field]: value } : s
-    ));
+  // Copy from yesterday
+  const copyFromYesterday = () => {
+    // Mock: add some sample data
+    setRows([
+      {
+        id: 1,
+        workerId: workers[0]?.id || "",
+        projectId: activeProjects[0]?.id || "",
+        start: "08:00",
+        end: "17:00",
+        breakTime: 60,
+        rateType: "Normal",
+      },
+      {
+        id: 2,
+        workerId: workers[1]?.id || "",
+        projectId: activeProjects[0]?.id || "",
+        start: "08:00",
+        end: "17:00",
+        breakTime: 60,
+        rateType: "Lembur",
+      },
+    ]);
   };
 
-  // Save attendance
+  // Save all attendance
   const handleSave = () => {
-    if (!workerId || sessions.some(s => !s.projectId)) {
-      alert('Lengkapi semua field!');
+    const validRows = calculatedRows.filter(
+      (r) => r.workerId && r.projectId && r.totalHours > 0
+    );
+
+    if (validRows.length === 0) {
+      alert("Tidak ada data valid untuk disimpan!");
       return;
     }
 
-    const record = {
-      date,
-      workerId,
-      sessions: calculations.sessionsWithDuration.map(s => ({
-        projectId: s.projectId,
-        start: s.start,
-        end: s.end,
-        duration: s.duration
-      })),
-      totalHours: calculations.totalHours,
-      isHoliday: holidayInfo.isHoliday,
-      wage: calculations.wage
-    };
+    validRows.forEach((row) => {
+      addAttendance({
+        date,
+        workerId: row.workerId,
+        sessions: [
+          {
+            projectId: row.projectId,
+            start: row.start,
+            end: row.end,
+            duration: parseFloat(row.totalHours),
+          },
+        ],
+        totalHours: parseFloat(row.totalHours),
+        isHoliday: holidayInfo.isHoliday,
+        wage: row.estWage,
+      });
+    });
 
-    addAttendance(record);
-    setSaved(true);
-
-    // Reset after 2 seconds
-    setTimeout(() => {
-      setSaved(false);
-      setWorkerId('');
-      setSessions([{ id: 1, projectId: '', start: '08:00', end: '12:00' }]);
-    }, 2000);
+    alert(`${validRows.length} data absensi berhasil disimpan!`);
+    setRows([
+      {
+        id: 1,
+        workerId: "",
+        projectId: "",
+        start: "",
+        end: "",
+        breakTime: 0,
+        rateType: "Normal",
+      },
+    ]);
   };
-
-  const activeProjects = projects.filter(p => p.status === 'active');
 
   return (
     <div className="animate-in">
-      <div className="page-header">
-        <h1 className="page-title">Input Absensi</h1>
-        <p className="page-subtitle">Pencatatan kehadiran harian tukang</p>
+      {/* Page Header */}
+      <div
+        className="page-header"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          flexWrap: "wrap",
+          gap: "var(--space-4)",
+        }}
+      >
+        <div>
+          <h1 className="page-title">Input Absensi</h1>
+          <p className="page-subtitle">
+            Catat jam kerja untuk{" "}
+            <strong>
+              {format(new Date(date), "d MMMM yyyy", { locale: id })}
+            </strong>
+          </p>
+        </div>
+        <button className="btn btn-secondary" onClick={copyFromYesterday}>
+          <Copy size={18} />
+          Salin dari Kemarin
+        </button>
       </div>
 
-      <div style={{ maxWidth: '600px' }}>
-        {/* Date Selection */}
-        <div className="card mb-4" style={{ marginBottom: 'var(--space-4)' }}>
-          <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
-            <label className="form-label">
-              <Calendar size={16} style={{ display: 'inline', marginRight: 'var(--space-2)' }} />
-              Tanggal
+      {/* Filter Section */}
+      <div
+        className="card mb-6"
+        style={{ marginBottom: "var(--space-6)", padding: "var(--space-5)" }}
+      >
+        <div
+          style={{
+            display: "flex",
+            gap: "var(--space-6)",
+            flexWrap: "wrap",
+            alignItems: "flex-end",
+          }}
+        >
+          <div
+            className="form-group"
+            style={{ flex: 1, minWidth: "200px", marginBottom: 0 }}
+          >
+            <label
+              className="form-label"
+              style={{
+                textTransform: "uppercase",
+                fontSize: "var(--text-xs)",
+                letterSpacing: "0.05em",
+              }}
+            >
+              Pilih Tanggal
             </label>
             <input
               type="date"
@@ -138,79 +222,182 @@ export default function Absensi() {
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 'var(--space-1)' }}>
-              {formatDateID(date)}
-            </p>
           </div>
 
-          {/* Holiday Alert */}
-          {holidayInfo.isHoliday && (
-            <div className="alert alert-warning">
-              <AlertCircle size={18} />
-              <div>
-                <strong>HARI LIBUR</strong> - {holidayInfo.reason}
-                <p style={{ fontSize: '0.75rem', marginTop: '2px' }}>
-                  Semua jam akan dihitung dengan rate libur
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Worker Selection */}
-        <div className="card mb-4" style={{ marginBottom: 'var(--space-4)' }}>
-          <div className="form-group">
-            <label className="form-label">Pilih Tukang</label>
+          <div
+            className="form-group"
+            style={{ flex: 2, minWidth: "250px", marginBottom: 0 }}
+          >
+            <label
+              className="form-label"
+              style={{
+                textTransform: "uppercase",
+                fontSize: "var(--text-xs)",
+                letterSpacing: "0.05em",
+              }}
+            >
+              Filter Proyek Global
+            </label>
             <select
               className="form-select"
-              value={workerId}
-              onChange={(e) => setWorkerId(e.target.value)}
+              value={globalProject}
+              onChange={(e) => setGlobalProject(e.target.value)}
             >
-              <option value="">-- Pilih Tukang --</option>
-              {workers.map(worker => (
-                <option key={worker.id} value={worker.id}>
-                  {worker.name} ({worker.skill})
+              <option value="all">Semua Proyek</option>
+              {activeProjects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
                 </option>
               ))}
             </select>
-            {selectedWorker && (
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 'var(--space-2)' }}>
-                Rate: Normal {formatCurrency(selectedWorker.rateNormal)}/jam |
-                Lembur {formatCurrency(selectedWorker.rateOvertime)}/jam |
-                Libur {formatCurrency(selectedWorker.rateHoliday)}/jam
-              </p>
-            )}
           </div>
+
+          <button className="btn btn-primary" onClick={applyFilter}>
+            Terapkan
+          </button>
+        </div>
+      </div>
+
+      {/* Table Card */}
+      <div className="card">
+        {/* Table Header */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "180px 140px 90px 90px 80px 60px 90px 100px 40px",
+            gap: "var(--space-3)",
+            padding: "var(--space-4)",
+            borderBottom: "1px solid var(--border-color)",
+            background: "var(--bg-tertiary)",
+            borderRadius: "var(--radius-lg) var(--radius-lg) 0 0",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "var(--text-xs)",
+              fontWeight: "600",
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+            }}
+          >
+            Pekerja
+          </div>
+          <div
+            style={{
+              fontSize: "var(--text-xs)",
+              fontWeight: "600",
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+            }}
+          >
+            Proyek
+          </div>
+          <div
+            style={{
+              fontSize: "var(--text-xs)",
+              fontWeight: "600",
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+            }}
+          >
+            Mulai
+          </div>
+          <div
+            style={{
+              fontSize: "var(--text-xs)",
+              fontWeight: "600",
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+            }}
+          >
+            Selesai
+          </div>
+          <div
+            style={{
+              fontSize: "var(--text-xs)",
+              fontWeight: "600",
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+            }}
+          >
+            Istirahat
+          </div>
+          <div
+            style={{
+              fontSize: "var(--text-xs)",
+              fontWeight: "600",
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+            }}
+          >
+            Total
+          </div>
+          <div
+            style={{
+              fontSize: "var(--text-xs)",
+              fontWeight: "600",
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+            }}
+          >
+            Tipe Tarif
+          </div>
+          <div
+            style={{
+              fontSize: "var(--text-xs)",
+              fontWeight: "600",
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+              textAlign: "right",
+            }}
+          >
+            Est. Gaji
+          </div>
+          <div></div>
         </div>
 
-        {/* Work Sessions */}
-        {sessions.map((session, index) => (
-          <div key={session.id} className="session-card">
-            <div className="session-header">
-              <span className="session-title">
-                SESSION {index + 1} {index === 0 ? '(Pagi)' : '(Pindah Proyek)'}
-              </span>
-              {sessions.length > 1 && (
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => removeSession(session.id)}
-                  style={{ color: 'var(--danger-500)' }}
-                >
-                  <Trash2 size={16} />
-                  Hapus
-                </button>
-              )}
-            </div>
-
-            <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
-              <label className="form-label">Proyek</label>
+        {/* Table Rows */}
+        {calculatedRows.map((row) => (
+          <div
+            key={row.id}
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "180px 140px 90px 90px 80px 60px 90px 100px 40px",
+              gap: "var(--space-3)",
+              padding: "var(--space-3) var(--space-4)",
+              borderBottom: "1px solid var(--border-color)",
+              alignItems: "center",
+            }}
+          >
+            {/* Worker Select */}
+            <div style={{ position: "relative" }}>
               <select
                 className="form-select"
-                value={session.projectId}
-                onChange={(e) => updateSession(session.id, 'projectId', e.target.value)}
+                value={row.workerId}
+                onChange={(e) => updateRow(row.id, "workerId", e.target.value)}
+                style={{ fontSize: "var(--text-sm)", paddingRight: "2rem" }}
               >
-                <option value="">-- Pilih Proyek --</option>
-                {activeProjects.map(project => (
+                <option value="">-- Pilih --</option>
+                {workers.map((worker) => (
+                  <option key={worker.id} value={worker.id}>
+                    {worker.name} - {worker.skill?.substring(0, 4)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Project Select */}
+            <div>
+              <select
+                className="form-select"
+                value={row.projectId}
+                onChange={(e) => updateRow(row.id, "projectId", e.target.value)}
+                style={{ fontSize: "var(--text-sm)" }}
+              >
+                <option value="">-- Pilih --</option>
+                {activeProjects.map((project) => (
                   <option key={project.id} value={project.id}>
                     {project.name}
                   </option>
@@ -218,89 +405,136 @@ export default function Absensi() {
               </select>
             </div>
 
-            <div className="session-grid">
-              <div className="form-group">
-                <label className="form-label">Jam Masuk</label>
-                <input
-                  type="time"
-                  className="form-input"
-                  value={session.start}
-                  onChange={(e) => updateSession(session.id, 'start', e.target.value)}
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Jam Keluar</label>
-                <input
-                  type="time"
-                  className="form-input"
-                  value={session.end}
-                  onChange={(e) => updateSession(session.id, 'end', e.target.value)}
-                />
-              </div>
+            {/* Start Time */}
+            <input
+              type="time"
+              className="form-input"
+              value={row.start}
+              onChange={(e) => updateRow(row.id, "start", e.target.value)}
+              style={{ fontSize: "var(--text-sm)" }}
+            />
+
+            {/* End Time */}
+            <input
+              type="time"
+              className="form-input"
+              value={row.end}
+              onChange={(e) => updateRow(row.id, "end", e.target.value)}
+              style={{ fontSize: "var(--text-sm)" }}
+            />
+
+            {/* Break Time */}
+            <div style={{ position: "relative" }}>
+              <input
+                type="number"
+                className="form-input"
+                value={row.breakTime}
+                onChange={(e) =>
+                  updateRow(row.id, "breakTime", parseInt(e.target.value) || 0)
+                }
+                min="0"
+                step="15"
+                style={{ fontSize: "var(--text-sm)", textAlign: "center" }}
+              />
+              <span
+                style={{
+                  position: "absolute",
+                  right: "8px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  fontSize: "var(--text-xs)",
+                  color: "var(--text-muted)",
+                  pointerEvents: "none",
+                }}
+              >
+                m
+              </span>
             </div>
 
-            <div className="session-duration">
-              <Clock size={14} style={{ display: 'inline', marginRight: 'var(--space-2)' }} />
-              Durasi: <strong>{calculations.sessionsWithDuration.find(s => s.id === session.id)?.duration || 0} Jam</strong>
+            {/* Total Hours */}
+            <div
+              style={{
+                fontWeight: "600",
+                fontSize: "var(--text-sm)",
+                textAlign: "center",
+              }}
+            >
+              {row.totalHours}j
             </div>
+
+            {/* Rate Type Badge */}
+            <div>
+              <button
+                onClick={() =>
+                  updateRow(
+                    row.id,
+                    "rateType",
+                    row.rateType === "Normal" ? "Lembur" : "Normal"
+                  )
+                }
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: "var(--radius-full)",
+                  border: "none",
+                  fontSize: "var(--text-xs)",
+                  fontWeight: "500",
+                  cursor: "pointer",
+                  background:
+                    row.rateType === "Normal"
+                      ? "rgba(34, 197, 94, 0.15)"
+                      : "rgba(245, 158, 11, 0.15)",
+                  color:
+                    row.rateType === "Normal"
+                      ? "var(--success-400)"
+                      : "var(--warning-400)",
+                }}
+              >
+                {row.rateType}
+              </button>
+            </div>
+
+            {/* Estimated Wage */}
+            <div
+              className="font-mono"
+              style={{
+                fontSize: "var(--text-sm)",
+                fontWeight: "500",
+                textAlign: "right",
+                color: "var(--text-secondary)",
+              }}
+            >
+              {formatCurrency(row.estWage)}
+            </div>
+
+            {/* Delete Button */}
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => removeRow(row.id)}
+              disabled={rows.length === 1}
+              style={{ padding: "var(--space-1)", color: "var(--text-muted)" }}
+            >
+              <Trash2 size={16} />
+            </button>
           </div>
         ))}
 
-        {/* Add Session Button */}
-        <button
-          className="btn btn-secondary btn-full mb-4"
-          onClick={addSession}
-          style={{ marginBottom: 'var(--space-6)' }}
-        >
-          <Plus size={18} />
-          TAMBAH SESI PROYEK LAIN
-        </button>
+        {/* Add Row Button */}
+        <div style={{ padding: "var(--space-4)" }}>
+          <button
+            className="btn btn-ghost"
+            onClick={addRow}
+            style={{ color: "var(--primary-400)" }}
+          >
+            <Plus size={18} />
+            Tambah Baris Pekerja
+          </button>
+        </div>
+      </div>
 
-        {/* Summary */}
-        {selectedWorker && calculations.totalHours > 0 && (
-          <div className="summary-card">
-            <h4 className="summary-title">Ringkasan Hari Ini</h4>
-            <div className="summary-grid">
-              <div className="summary-row">
-                <span className="summary-label">Total Jam</span>
-                <span className="summary-value">{calculations.totalHours} Jam</span>
-              </div>
-              {calculations.rateInfo && (
-                <div className="summary-row">
-                  <span className="summary-label">{calculations.rateInfo.label}</span>
-                  <span className="summary-value font-mono">
-                    {typeof calculations.rateInfo.rate === 'number'
-                      ? formatCurrency(calculations.rateInfo.rate)
-                      : calculations.rateInfo.rate}
-                  </span>
-                </div>
-              )}
-              <div className="summary-row" style={{ paddingTop: 'var(--space-3)', borderTop: '1px solid var(--border-color)' }}>
-                <span className="summary-label">Estimasi Gaji</span>
-                <span className="summary-value highlight">{formatCurrency(calculations.wage)}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Save Button */}
-        <button
-          className={`btn ${saved ? 'btn-secondary' : 'btn-primary'} btn-lg btn-full mt-6`}
-          onClick={handleSave}
-          disabled={saved || !workerId || sessions.some(s => !s.projectId)}
-          style={{ marginTop: 'var(--space-6)' }}
-        >
-          {saved ? (
-            <>
-              <CheckCircle size={20} />
-              TERSIMPAN!
-            </>
-          ) : (
-            <>
-              <Save size={20} />
-              SIMPAN ABSEN
-            </>
-          )}
+      {/* Save Button */}
+      <div style={{ marginTop: "var(--space-6)", textAlign: "right" }}>
+        <button className="btn btn-primary btn-lg" onClick={handleSave}>
+          Simpan Semua Absensi
         </button>
       </div>
     </div>

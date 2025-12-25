@@ -1,14 +1,15 @@
 // API Configuration
 // Replace this with your deployed Google Apps Script Web App URL
-export const API_URL = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL';
+export const API_URL =
+  "https://script.google.com/macros/s/AKfycbxATy1aYPNnmfh6GQ2_fJjHjpjB-GYf7xecxZwnu1SlZyqnAWFy0POzlp4FAckqzW5q/exec";
 
 // Sheet names mapping
 const SHEETS = {
-  PROYEK: 'Proyek',
-  TUKANG: 'Tukang',
-  VENDOR: 'Vendor',
-  ABSENSI: 'Absensi',
-  BELANJA: 'Belanja',
+  PROYEK: "Proyek",
+  TUKANG: "Tukang",
+  VENDOR: "Vendor",
+  ABSENSI: "Absensi",
+  BELANJA: "Belanja",
 };
 
 /**
@@ -16,23 +17,33 @@ const SHEETS = {
  */
 async function fetchAPI(url, options = {}) {
   try {
-    const response = await fetch(url, {
+    // Don't send Content-Type for GET (causes CORS issues with GAS)
+    const fetchOptions = {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
+      redirect: "follow",
+    };
+
+    // Only add Content-Type for POST
+    if (options.method === "POST") {
+      fetchOptions.headers = {
+        "Content-Type": "text/plain",
         ...options.headers,
-      },
-    });
-
-    const data = await response.json();
-
-    if (data.error) {
-      throw new Error(data.error);
+      };
     }
 
-    return data;
+    const response = await fetch(url, fetchOptions);
+
+    const result = await response.json();
+
+    // Handle new response format { success, data, error }
+    if (result.success === false) {
+      throw new Error(result.error?.message || "Unknown error");
+    }
+
+    // Return data if wrapped, otherwise return result
+    return result.data !== undefined ? result.data : result;
   } catch (error) {
-    console.error('API Error:', error);
+    console.error("API Error:", error);
     throw error;
   }
 }
@@ -59,7 +70,7 @@ export async function getAllSheetsData() {
 export async function addRow(sheetName, data) {
   const url = `${API_URL}?action=addRow&sheet=${sheetName}`;
   return fetchAPI(url, {
-    method: 'POST',
+    method: "POST",
     body: JSON.stringify(data),
   });
 }
@@ -70,7 +81,7 @@ export async function addRow(sheetName, data) {
 export async function updateRow(sheetName, id, data) {
   const url = `${API_URL}?action=updateRow&sheet=${sheetName}&id=${id}`;
   return fetchAPI(url, {
-    method: 'POST',
+    method: "POST",
     body: JSON.stringify(data),
   });
 }
@@ -81,7 +92,7 @@ export async function updateRow(sheetName, id, data) {
 export async function deleteRow(sheetName, id) {
   const url = `${API_URL}?action=deleteRow&sheet=${sheetName}&id=${id}`;
   return fetchAPI(url, {
-    method: 'POST',
+    method: "POST",
     body: JSON.stringify({}),
   });
 }

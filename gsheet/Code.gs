@@ -15,16 +15,16 @@
 // ============================================
 // CONFIGURATION - UPDATE THIS!
 // ============================================
-const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE'; // Replace with your spreadsheet ID
+const SPREADSHEET_ID = "1hnMCHRbm5fYtr_LgqwqaeNcx3qMZX-zORr0r4TlmgMk"; // Replace with your spreadsheet ID
 
 // Sheet names
 const SHEETS = {
-  PROYEK: 'Proyek',
-  TUKANG: 'Tukang',
-  VENDOR: 'Vendor',
-  ABSENSI: 'Absensi',
-  BELANJA: 'Belanja',
-  SETTINGS: 'Settings'
+  PROYEK: "Proyek",
+  TUKANG: "Tukang",
+  VENDOR: "Vendor",
+  ABSENSI: "Absensi",
+  BELANJA: "Belanja",
+  SETTINGS: "Settings",
 };
 
 // ============================================
@@ -38,26 +38,52 @@ function doGet(e) {
   let result;
 
   try {
-    switch(action) {
-      case 'getData':
+    switch (action) {
+      case "getData":
         result = getAllData(sheet);
         break;
-      case 'getRow':
+      case "getRow":
         result = getRowById(sheet, e.parameter.id);
         break;
-      case 'getAllSheets':
-        result = getAllSheetsData();
+      case "getAllSheets":
+        result = { success: true, data: getAllSheetsData() };
+        break;
+      // New actions for sheetsApi
+      case "getProyek":
+        result = { success: true, data: getAllData(SHEETS.PROYEK) };
+        break;
+      case "getTukang":
+        result = { success: true, data: getAllData(SHEETS.TUKANG) };
+        break;
+      case "getVendor":
+        result = { success: true, data: getAllData(SHEETS.VENDOR) };
+        break;
+      case "getAbsensi":
+        result = { success: true, data: getAllData(SHEETS.ABSENSI) };
+        break;
+      case "getBelanja":
+        result = { success: true, data: getAllData(SHEETS.BELANJA) };
+        break;
+      case "getHutang":
+        const belanja = getAllData(SHEETS.BELANJA);
+        result = {
+          success: true,
+          data: belanja.filter((b) => b.status !== "paid"),
+        };
         break;
       default:
-        result = { error: 'Unknown action' };
+        result = {
+          success: false,
+          error: { message: "Unknown action: " + action },
+        };
     }
-  } catch(error) {
-    result = { error: error.toString() };
+  } catch (error) {
+    result = { success: false, error: { message: error.toString() } };
   }
 
-  return ContentService
-    .createTextOutput(JSON.stringify(result))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(
+    ContentService.MimeType.JSON
+  );
 }
 
 function doPost(e) {
@@ -68,26 +94,26 @@ function doPost(e) {
   let result;
 
   try {
-    switch(action) {
-      case 'addRow':
+    switch (action) {
+      case "addRow":
         result = addRow(sheet, data);
         break;
-      case 'updateRow':
+      case "updateRow":
         result = updateRow(sheet, e.parameter.id, data);
         break;
-      case 'deleteRow':
+      case "deleteRow":
         result = deleteRow(sheet, e.parameter.id);
         break;
       default:
-        result = { error: 'Unknown action' };
+        result = { error: "Unknown action" };
     }
-  } catch(error) {
+  } catch (error) {
     result = { error: error.toString() };
   }
 
-  return ContentService
-    .createTextOutput(JSON.stringify(result))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(
+    ContentService.MimeType.JSON
+  );
 }
 
 // ============================================
@@ -108,15 +134,15 @@ function getAllData(sheetName) {
   const headers = data[0];
   const rows = data.slice(1);
 
-  return rows.map(row => {
+  return rows.map((row) => {
     const obj = {};
     headers.forEach((header, index) => {
       let value = row[index];
       // Parse JSON fields
-      if (header === 'sessions' || header === 'items') {
+      if (header === "sessions" || header === "items") {
         try {
           value = JSON.parse(value);
-        } catch(e) {
+        } catch (e) {
           // Keep as string if not valid JSON
         }
       }
@@ -132,13 +158,13 @@ function getAllSheetsData() {
     tukang: getAllData(SHEETS.TUKANG),
     vendor: getAllData(SHEETS.VENDOR),
     absensi: getAllData(SHEETS.ABSENSI),
-    belanja: getAllData(SHEETS.BELANJA)
+    belanja: getAllData(SHEETS.BELANJA),
   };
 }
 
 function getRowById(sheetName, id) {
   const data = getAllData(sheetName);
-  return data.find(row => row.id === id) || null;
+  return data.find((row) => row.id === id) || null;
 }
 
 function addRow(sheetName, data) {
@@ -157,13 +183,16 @@ function addRow(sheetName, data) {
   }
 
   // Build row based on headers
-  const row = headers.map(header => {
+  const row = headers.map((header) => {
     let value = data[header];
     // Stringify JSON fields
-    if ((header === 'sessions' || header === 'items') && typeof value === 'object') {
+    if (
+      (header === "sessions" || header === "items") &&
+      typeof value === "object"
+    ) {
       value = JSON.stringify(value);
     }
-    return value !== undefined ? value : '';
+    return value !== undefined ? value : "";
   });
 
   sheet.appendRow(row);
@@ -181,10 +210,10 @@ function updateRow(sheetName, id, data) {
 
   const allData = sheet.getDataRange().getValues();
   const headers = allData[0];
-  const idIndex = headers.indexOf('id');
+  const idIndex = headers.indexOf("id");
 
   if (idIndex === -1) {
-    return { error: 'No id column found' };
+    return { error: "No id column found" };
   }
 
   // Find row with matching id
@@ -194,7 +223,10 @@ function updateRow(sheetName, id, data) {
       headers.forEach((header, colIndex) => {
         if (data[header] !== undefined) {
           let value = data[header];
-          if ((header === 'sessions' || header === 'items') && typeof value === 'object') {
+          if (
+            (header === "sessions" || header === "items") &&
+            typeof value === "object"
+          ) {
             value = JSON.stringify(value);
           }
           sheet.getRange(i + 1, colIndex + 1).setValue(value);
@@ -204,7 +236,7 @@ function updateRow(sheetName, id, data) {
     }
   }
 
-  return { error: 'Row not found' };
+  return { error: "Row not found" };
 }
 
 function deleteRow(sheetName, id) {
@@ -217,7 +249,7 @@ function deleteRow(sheetName, id) {
 
   const allData = sheet.getDataRange().getValues();
   const headers = allData[0];
-  const idIndex = headers.indexOf('id');
+  const idIndex = headers.indexOf("id");
 
   for (let i = 1; i < allData.length; i++) {
     if (allData[i][idIndex] === id) {
@@ -226,7 +258,7 @@ function deleteRow(sheetName, id) {
     }
   }
 
-  return { error: 'Row not found' };
+  return { error: "Row not found" };
 }
 
 // ============================================
@@ -247,24 +279,54 @@ function setupSpreadsheet() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
 
   // Proyek sheet
-  createSheetIfNotExists(ss, SHEETS.PROYEK, ['id', 'name', 'location', 'status']);
+  createSheetIfNotExists(ss, SHEETS.PROYEK, [
+    "id",
+    "name",
+    "location",
+    "status",
+  ]);
 
   // Tukang sheet
-  createSheetIfNotExists(ss, SHEETS.TUKANG, ['id', 'name', 'skill', 'rateNormal', 'rateOvertime', 'rateHoliday']);
+  createSheetIfNotExists(ss, SHEETS.TUKANG, [
+    "id",
+    "name",
+    "skill",
+    "rateNormal",
+    "rateOvertime",
+    "rateHoliday",
+  ]);
 
   // Vendor sheet
-  createSheetIfNotExists(ss, SHEETS.VENDOR, ['id', 'name', 'address', 'phone']);
+  createSheetIfNotExists(ss, SHEETS.VENDOR, ["id", "name", "address", "phone"]);
 
   // Absensi sheet
-  createSheetIfNotExists(ss, SHEETS.ABSENSI, ['id', 'date', 'workerId', 'sessions', 'totalHours', 'isHoliday', 'wage']);
+  createSheetIfNotExists(ss, SHEETS.ABSENSI, [
+    "id",
+    "date",
+    "workerId",
+    "sessions",
+    "totalHours",
+    "isHoliday",
+    "wage",
+  ]);
 
   // Belanja sheet
-  createSheetIfNotExists(ss, SHEETS.BELANJA, ['id', 'invoiceNo', 'date', 'vendorId', 'total', 'status', 'dueDate', 'items', 'paidDate']);
+  createSheetIfNotExists(ss, SHEETS.BELANJA, [
+    "id",
+    "invoiceNo",
+    "date",
+    "vendorId",
+    "total",
+    "status",
+    "dueDate",
+    "items",
+    "paidDate",
+  ]);
 
   // Add sample data
   addSampleData(ss);
 
-  return 'Setup complete!';
+  return "Setup complete!";
 }
 
 function createSheetIfNotExists(ss, sheetName, headers) {
@@ -276,7 +338,7 @@ function createSheetIfNotExists(ss, sheetName, headers) {
 
   // Set headers
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+  sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
 
   return sheet;
 }
@@ -285,24 +347,54 @@ function addSampleData(ss) {
   // Sample Proyek
   const proyekSheet = ss.getSheetByName(SHEETS.PROYEK);
   if (proyekSheet.getLastRow() === 1) {
-    proyekSheet.appendRow(['proj-001', 'Ruko Blok A', 'Jl. Sudirman No.12', 'active']);
-    proyekSheet.appendRow(['proj-002', 'Rumah Cluster B', 'Perumahan Harmoni', 'active']);
-    proyekSheet.appendRow(['proj-003', 'Gudang Industri', 'Kawasan Industri Cikupa', 'active']);
+    proyekSheet.appendRow([
+      "proj-001",
+      "Ruko Blok A",
+      "Jl. Sudirman No.12",
+      "active",
+    ]);
+    proyekSheet.appendRow([
+      "proj-002",
+      "Rumah Cluster B",
+      "Perumahan Harmoni",
+      "active",
+    ]);
+    proyekSheet.appendRow([
+      "proj-003",
+      "Gudang Industri",
+      "Kawasan Industri Cikupa",
+      "active",
+    ]);
   }
 
   // Sample Tukang
   const tukangSheet = ss.getSheetByName(SHEETS.TUKANG);
   if (tukangSheet.getLastRow() === 1) {
-    tukangSheet.appendRow(['wrk-001', 'Budi', 'Ahli', 25000, 35000, 40000]);
-    tukangSheet.appendRow(['wrk-002', 'Agus', 'Ahli', 25000, 35000, 40000]);
-    tukangSheet.appendRow(['wrk-003', 'Dedi', 'Pembantu', 15000, 20000, 25000]);
+    tukangSheet.appendRow(["wrk-001", "Budi", "Ahli", 25000, 35000, 40000]);
+    tukangSheet.appendRow(["wrk-002", "Agus", "Ahli", 25000, 35000, 40000]);
+    tukangSheet.appendRow(["wrk-003", "Dedi", "Pembantu", 15000, 20000, 25000]);
   }
 
   // Sample Vendor
   const vendorSheet = ss.getSheetByName(SHEETS.VENDOR);
   if (vendorSheet.getLastRow() === 1) {
-    vendorSheet.appendRow(['vnd-001', 'TB. Sinar Jaya', 'Jl. Raya Serang KM.5', '021-12345678']);
-    vendorSheet.appendRow(['vnd-002', 'TB. Abadi', 'Jl. Industri No.10', '021-87654321']);
-    vendorSheet.appendRow(['vnd-003', 'Toko Besi Kuat', 'Pasar Material Blok C', '0812-3456-7890']);
+    vendorSheet.appendRow([
+      "vnd-001",
+      "TB. Sinar Jaya",
+      "Jl. Raya Serang KM.5",
+      "021-12345678",
+    ]);
+    vendorSheet.appendRow([
+      "vnd-002",
+      "TB. Abadi",
+      "Jl. Industri No.10",
+      "021-87654321",
+    ]);
+    vendorSheet.appendRow([
+      "vnd-003",
+      "Toko Besi Kuat",
+      "Pasar Material Blok C",
+      "0812-3456-7890",
+    ]);
   }
 }
