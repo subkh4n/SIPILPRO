@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useData } from "../../context/DataContext";
+import { useToast } from "../../context/ToastContext";
 import { formatCurrency } from "../../utils/helpers";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
@@ -36,6 +37,7 @@ export default function LogAbsensi() {
     deleteAttendance,
     refreshData,
   } = useData();
+  const toast = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMonth, setFilterMonth] = useState(format(new Date(), "yyyy-MM"));
   const [filterProject, setFilterProject] = useState("all");
@@ -180,7 +182,7 @@ export default function LogAbsensi() {
       setEditModal(null);
       refreshData();
     } catch (err) {
-      alert("Gagal update absensi: " + err.message);
+      toast.error("Gagal update absensi: " + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -194,7 +196,7 @@ export default function LogAbsensi() {
       setDeleteConfirm(null);
       refreshData();
     } catch (err) {
-      alert("Gagal hapus absensi: " + err.message);
+      toast.error("Gagal hapus absensi: " + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -696,7 +698,7 @@ export default function LogAbsensi() {
                           className="btn btn-ghost btn-sm"
                           title="Lihat"
                           style={{ color: "var(--primary-400)" }}
-                          onClick={() => handleView(entry)}
+                          onClick={() => handleView(log)}
                         >
                           <Eye size={16} />
                         </button>
@@ -704,7 +706,7 @@ export default function LogAbsensi() {
                           className="btn btn-ghost btn-sm"
                           title="Edit"
                           style={{ color: "var(--warning-400)" }}
-                          onClick={() => handleEdit(entry)}
+                          onClick={() => handleEdit(log)}
                         >
                           <Edit2 size={16} />
                         </button>
@@ -712,7 +714,7 @@ export default function LogAbsensi() {
                           className="btn btn-ghost btn-sm"
                           title="Hapus"
                           style={{ color: "var(--danger-400)" }}
-                          onClick={() => setDeleteConfirm(entry)}
+                          onClick={() => setDeleteConfirm(log)}
                         >
                           <Trash2 size={16} />
                         </button>

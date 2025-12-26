@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useData } from "../../context/DataContext";
+import { useToast } from "../../context/ToastContext";
 import { formatCurrency } from "../../utils/helpers";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
@@ -18,6 +19,7 @@ import DateRangePicker from "../../components/DateRangePicker";
 
 export default function Payroll() {
   const { workers, attendance } = useData();
+  const toast = useToast();
   const [startDate, setStartDate] = useState(
     format(startOfMonth(new Date()), "yyyy-MM-dd")
   );
@@ -103,7 +105,7 @@ export default function Payroll() {
 
   // Print slip
   const handlePrintSlip = (worker) => {
-    alert(`Cetak slip gaji untuk ${worker.name}`);
+    toast.info(`Cetak slip gaji untuk ${worker.name}`);
   };
 
   return (

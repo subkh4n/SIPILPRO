@@ -1,15 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { formatCurrency } from "../../utils/helpers";
-import {
-  User,
-  Camera,
-  Save,
-  X,
-  ArrowLeft,
-  Upload,
-  Loader,
-} from "lucide-react";
+import { useToast } from "../../context/ToastContext";
+import { User, Camera, Save, X, ArrowLeft, Upload, Loader } from "lucide-react";
 
 /**
  * PegawaiForm - Reusable form component for Add/Edit Employee
@@ -27,6 +19,7 @@ export default function PegawaiForm({
   mode = "add",
 }) {
   const navigate = useNavigate();
+  const toast = useToast();
   const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
@@ -50,22 +43,51 @@ export default function PegawaiForm({
 
   const [fotoPreview, setFotoPreview] = useState(initialData.foto || null);
   const [fotoFile, setFotoFile] = useState(null);
+  const [fotoError, setFotoError] = useState(false);
 
-  // Update form when initialData changes (for edit mode)
-  useEffect(() => {
-    if (initialData && Object.keys(initialData).length > 0) {
-      setFormData((prev) => ({
-        ...prev,
-        ...initialData,
-        rateNormal: initialData.rateNormal || "",
-        rateOvertime: initialData.rateOvertime || "",
-        rateHoliday: initialData.rateHoliday || "",
-      }));
-      if (initialData.foto) {
-        setFotoPreview(initialData.foto);
-      }
+  // Convert Google Drive URL to a displayable format
+  // Using drive.google.com/thumbnail format which is more stable
+  const getDisplayableFotoUrl = (url) => {
+    if (!url) return null;
+    // If it's a base64 data URL, return as-is
+    if (url.startsWith("data:")) return url;
+
+    // Extract file ID from various Google Drive URL formats
+    let fileId = null;
+
+    // Match: lh3.googleusercontent.com/d/FILE_ID
+    const lh3Match = url.match(
+      /lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/
+    );
+    if (lh3Match) fileId = lh3Match[1];
+
+    // Match: drive.google.com/uc?export=view&id=XXX or ?id=XXX
+    if (!fileId) {
+      const ucMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (ucMatch) fileId = ucMatch[1];
     }
-  }, [initialData]);
+
+    // Match: drive.google.com/file/d/XXX/view
+    if (!fileId) {
+      const fileMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (fileMatch) fileId = fileMatch[1];
+    }
+
+    // Match: /d/FILE_ID format
+    if (!fileId) {
+      const dMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (dMatch) fileId = dMatch[1];
+    }
+
+    // If we found a file ID, use drive.google.com/thumbnail format
+    // This format is more stable and less rate-limited
+    if (fileId) {
+      return `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
+    }
+
+    // For other URLs, return as-is
+    return url;
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -77,15 +99,16 @@ export default function PegawaiForm({
     if (file) {
       // Validate file type
       if (!file.type.startsWith("image/")) {
-        alert("Harap pilih file gambar (JPG, PNG, dll)");
+        toast.warning("Harap pilih file gambar (JPG, PNG, dll)");
         return;
       }
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert("Ukuran file maksimal 5MB");
+        toast.warning("Ukuran file maksimal 5MB");
         return;
       }
       setFotoFile(file);
+      setFotoError(false); // Reset error state when new file is uploaded
       // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -197,18 +220,21 @@ export default function PegawaiForm({
                 e.currentTarget.style.borderColor = "var(--border-color)";
               }}
             >
-              {fotoPreview ? (
+              {(fotoPreview || formData.foto) && !fotoError ? (
                 <img
-                  src={fotoPreview}
+                  src={getDisplayableFotoUrl(fotoPreview || formData.foto)}
                   alt="Preview"
                   style={{
                     width: "100%",
                     height: "100%",
                     objectFit: "cover",
                   }}
+                  onError={() => setFotoError(true)}
                 />
               ) : (
-                <div style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                <div
+                  style={{ textAlign: "center", color: "var(--text-muted)" }}
+                >
                   <Camera
                     size={48}
                     style={{ marginBottom: "var(--space-2)", opacity: 0.5 }}

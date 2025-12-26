@@ -198,6 +198,14 @@ function routePostRequest(action, params, data) {
     case "uploadFotoPegawai":
       return TukangService.uploadFoto(params.id, data.base64, data.mimeType);
 
+    // ---- Generic CRUD (for backward compatibility) ----
+    case "addRow":
+      return handleGenericAdd(params.sheet, data);
+    case "updateRow":
+      return handleGenericUpdate(params.sheet, params.id, data);
+    case "deleteRow":
+      return handleGenericDelete(params.sheet, params.id);
+
     default:
       return ApiResponse.error(`Unknown action: ${action}`);
   }

@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useData } from "../../context/DataContext";
+import { useToast } from "../../context/ToastContext";
 import { formatCurrency } from "../../utils/helpers";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
@@ -21,59 +22,24 @@ import {
 
 export default function VerifikasiNota() {
   const { purchases, updatePurchase, deletePurchase, refreshData } = useData();
+  const toast = useToast();
 
-  // Use purchases from context, with fallback mock data
-  const [pendingNotes, setPendingNotes] = useState(() => {
-    if (purchases.length > 0) {
-      return purchases.map((p) => ({
+  // Derive notes directly from purchases context
+  const notes = useMemo(() => {
+    return purchases
+      .filter((p) => p.verifyStatus !== undefined) // Only show items that need verification or have been verified
+      .map((p) => ({
         ...p,
         invoiceNo: p.invoiceNo || `INV-${p.id}`,
         vendorName: p.vendorName || "Unknown Vendor",
         projectName: p.projectName || "Unknown Project",
         submittedBy: p.submittedBy || "Admin",
-        submittedAt: p.date || new Date().toISOString(),
-        status: p.verifyStatus || "pending",
-      }));
-    }
-    return [
-      {
-        id: "nota-001",
-        invoiceNo: "INV-2025-456",
-        vendorId: "vnd-001",
-        vendorName: "TB. Sinar Jaya",
-        date: "2025-12-25",
-        projectId: "prj-001",
-        projectName: "Ruko Blok A",
-        items: [
-          { name: "Semen Gresik", qty: 50, unit: "Sak", total: 3000000 },
-          { name: "Pasir", qty: 2, unit: "Truck", total: 1500000 },
-        ],
-        total: 4500000,
-        submittedBy: "Admin Lapangan",
-        submittedAt: "2025-12-25T10:30:00",
-        imageUrl: null,
-        status: "pending",
-      },
-      {
-        id: "nota-002",
-        invoiceNo: "INV-2025-457",
-        vendorId: "vnd-002",
-        vendorName: "CV. Baja Makmur",
-        date: "2025-12-24",
-        projectId: "prj-002",
-        projectName: "Rumah Cluster B",
-        items: [
-          { name: "Besi 10mm", qty: 100, unit: "Batang", total: 7500000 },
-          { name: "Kawat Bendrat", qty: 5, unit: "Roll", total: 250000 },
-        ],
-        total: 7750000,
-        submittedBy: "Mandor Budi",
-        submittedAt: "2025-12-24T14:15:00",
-        imageUrl: null,
-        status: "pending",
-      },
-    ];
-  });
+        submittedAt: p.date
+          ? new Date(p.date).toISOString()
+          : new Date().toISOString(),
+      }))
+      .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+  }, [purchases]);
 
   const [selectedNote, setSelectedNote] = useState(null);
   const [filterStatus, setFilterStatus] = useState("pending");
@@ -81,26 +47,23 @@ export default function VerifikasiNota() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   // Filter notes
-  const filteredNotes =
-    filterStatus === "all"
-      ? pendingNotes
-      : pendingNotes.filter((n) => n.status === filterStatus);
+  const filteredNotes = useMemo(() => {
+    if (filterStatus === "all") return notes;
+    return notes.filter((n) => (n.verifyStatus || "pending") === filterStatus);
+  }, [notes, filterStatus]);
 
   // Approve note
   const handleApprove = async (noteId) => {
     setIsLoading(true);
     try {
+      // ONLY update verifyStatus, preserve original payment status (paid/unpaid)
       await updatePurchase(noteId, {
         verifyStatus: "approved",
-        status: "approved",
       });
-      setPendingNotes((prev) =>
-        prev.map((n) => (n.id === noteId ? { ...n, status: "approved" } : n))
-      );
       setSelectedNote(null);
       refreshData();
     } catch (err) {
-      alert("Gagal menyetujui nota: " + err.message);
+      toast.error("Gagal menyetujui nota: " + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -116,36 +79,27 @@ export default function VerifikasiNota() {
           verifyStatus: "rejected",
           rejectReason: reason,
         });
-        setPendingNotes((prev) =>
-          prev.map((n) =>
-            n.id === noteId
-              ? { ...n, status: "rejected", rejectReason: reason }
-              : n
-          )
-        );
         setSelectedNote(null);
         refreshData();
       } catch (err) {
-        alert("Gagal menolak nota: " + err.message);
+        toast.error("Gagal menolak nota: " + err.message);
       } finally {
         setIsLoading(false);
       }
     }
   };
-
   // Delete note
   const handleDeleteConfirm = async () => {
     setIsLoading(true);
     try {
       await deletePurchase(deleteConfirm.id);
-      setPendingNotes((prev) => prev.filter((n) => n.id !== deleteConfirm.id));
       setDeleteConfirm(null);
       if (selectedNote?.id === deleteConfirm.id) {
         setSelectedNote(null);
       }
       refreshData();
     } catch (err) {
-      alert("Gagal menghapus nota: " + err.message);
+      toast.error("Gagal menghapus nota: " + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -178,9 +132,8 @@ export default function VerifikasiNota() {
     }
   };
 
-  // Pending count
-  const pendingCount = pendingNotes.filter(
-    (n) => n.status === "pending"
+  const pendingCount = notes.filter(
+    (n) => (n.verifyStatus || "pending") === "pending"
   ).length;
 
   return (
@@ -298,7 +251,7 @@ export default function VerifikasiNota() {
                       {note.vendorName}
                     </div>
                   </div>
-                  {getStatusBadge(note.status)}
+                  {getStatusBadge(note.verifyStatus || "pending")}
                 </div>
 
                 <div
@@ -512,7 +465,7 @@ export default function VerifikasiNota() {
               </div>
 
               {/* Actions */}
-              {selectedNote.status === "pending" && (
+              {(selectedNote.verifyStatus || "pending") === "pending" && (
                 <div style={{ display: "flex", gap: "var(--space-3)" }}>
                   <button
                     className="btn btn-danger btn-full"
@@ -531,14 +484,14 @@ export default function VerifikasiNota() {
                 </div>
               )}
 
-              {selectedNote.status === "approved" && (
+              {selectedNote.verifyStatus === "approved" && (
                 <div className="alert alert-success">
                   <CheckCircle2 size={18} />
                   Nota ini sudah disetujui
                 </div>
               )}
 
-              {selectedNote.status === "rejected" && (
+              {selectedNote.verifyStatus === "rejected" && (
                 <div className="alert alert-danger">
                   <XCircle size={18} />
                   <div>

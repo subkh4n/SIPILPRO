@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useData } from "../../context/DataContext";
+import { useToast } from "../../context/ToastContext";
 import {
   Camera,
   Upload,
@@ -15,6 +16,7 @@ import {
 
 export default function ScanNota() {
   const { vendors, projects } = useData();
+  const toast = useToast();
   const [uploadedImage, setUploadedImage] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [ocrResult, setOcrResult] = useState(null);
@@ -110,7 +112,7 @@ export default function ScanNota() {
 
   // Submit for verification
   const handleSubmit = () => {
-    alert("Nota berhasil dikirim untuk verifikasi!");
+    toast.success("Nota berhasil dikirim untuk verifikasi!");
     clearUpload();
   };
 

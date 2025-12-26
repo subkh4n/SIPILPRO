@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useData } from "../../context/DataContext";
+import { useToast } from "../../context/ToastContext";
 import {
   format,
   startOfMonth,
@@ -62,6 +63,7 @@ export default function Kalender() {
     deleteHoliday,
     refreshData,
   } = useData();
+  const toast = useToast();
 
   // Use context holidays if available, otherwise use initial
   const holidays =
@@ -70,7 +72,6 @@ export default function Kalender() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showForm, setShowForm] = useState(false);
   const [editingHoliday, setEditingHoliday] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     date: "",
     name: "",
@@ -128,7 +129,6 @@ export default function Kalender() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
     try {
       if (editingHoliday) {
         await updateHoliday(editingHoliday.id, formData);
@@ -139,22 +139,17 @@ export default function Kalender() {
       setEditingHoliday(null);
       refreshData();
     } catch (err) {
-      alert("Gagal menyimpan hari libur: " + err.message);
-    } finally {
-      setIsLoading(false);
+      toast.error("Gagal menyimpan hari libur: " + err.message);
     }
   };
 
   const handleDelete = async (holidayId) => {
     if (window.confirm("Hapus hari libur ini?")) {
-      setIsLoading(true);
       try {
         await deleteHoliday(holidayId);
         refreshData();
       } catch (err) {
-        alert("Gagal menghapus hari libur: " + err.message);
-      } finally {
-        setIsLoading(false);
+        toast.error("Gagal menghapus hari libur: " + err.message);
       }
     }
   };

@@ -1,4 +1,5 @@
 import { useData } from "../../context/DataContext";
+import { useToast } from "../../context/ToastContext";
 import { formatCurrency } from "../../utils/helpers";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
@@ -16,6 +17,7 @@ import { useState } from "react";
 
 export default function JatuhTempo() {
   const { purchases, vendors, payDebt } = useData();
+  const toast = useToast();
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   // Get unpaid purchases
@@ -115,7 +117,9 @@ export default function JatuhTempo() {
   };
 
   // Handle pay
-  const handlePay = (purchase) => {
+  const [payingId, setPayingId] = useState(null);
+
+  const handlePay = async (purchase) => {
     if (
       window.confirm(
         `Bayar hutang ${purchase.invoiceNo} sebesar ${formatCurrency(
@@ -123,7 +127,14 @@ export default function JatuhTempo() {
         )}?`
       )
     ) {
-      payDebt(purchase.id, purchase.total);
+      setPayingId(purchase.id);
+      try {
+        await payDebt(purchase.id, purchase.total);
+      } catch (err) {
+        toast.error("Gagal memproses pembayaran: " + err.message);
+      } finally {
+        setPayingId(null);
+      }
     }
   };
 
@@ -428,9 +439,23 @@ export default function JatuhTempo() {
                     className="btn btn-success btn-sm"
                     onClick={() => handlePay(purchase)}
                     style={{ marginLeft: "var(--space-3)" }}
+                    disabled={payingId === purchase.id}
                   >
-                    <CheckCircle2 size={14} />
-                    Bayar
+                    {payingId === purchase.id ? (
+                      <>
+                        <div
+                          className="spinner-border spinner-border-sm text-light me-1"
+                          role="status"
+                          style={{ width: "0.8rem", height: "0.8rem" }}
+                        ></div>
+                        Bayar...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 size={14} />
+                        Bayar
+                      </>
+                    )}
                   </button>
                 </div>
               );

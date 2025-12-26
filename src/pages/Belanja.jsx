@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useData } from "../context/DataContext";
+import { useToast } from "../context/ToastContext";
 import { formatCurrency } from "../utils/helpers";
 import { format, addDays } from "date-fns";
 import {
@@ -14,6 +15,7 @@ import {
 
 export default function Belanja() {
   const { vendors, projects, addPurchase } = useData();
+  const toast = useToast();
 
   // Header state
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -31,6 +33,7 @@ export default function Belanja() {
   ]);
 
   const [saved, setSaved] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Calculate totals
   const calculations = useMemo(() => {
@@ -79,49 +82,57 @@ export default function Belanja() {
   };
 
   // Save purchase
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!vendorId || !invoiceNo || !calculations.isMatch) {
-      alert("Lengkapi semua field dan pastikan total cocok!");
+      toast.warning("Lengkapi semua field dan pastikan total cocok!");
       return;
     }
 
-    const purchase = {
-      invoiceNo,
-      date,
-      vendorId,
-      total: calculations.headerTotal,
-      status: isDebt ? "unpaid" : "paid",
-      dueDate: isDebt ? dueDate : null,
-      items: calculations.itemsWithTotal.map((item) => ({
-        name: item.name,
-        qty: parseFloat(item.qty),
-        unit: item.unit,
-        pricePerUnit: parseFloat(item.pricePerUnit),
-        total: item.total,
-        projectId: item.projectId,
-      })),
-    };
+    setIsLoading(true);
+    try {
+      const purchase = {
+        invoiceNo,
+        date,
+        vendorId,
+        total: calculations.headerTotal,
+        status: isDebt ? "unpaid" : "paid",
+        dueDate: isDebt ? dueDate : null,
+        verifyStatus: "pending", // Default to pending verification
+        items: calculations.itemsWithTotal.map((item) => ({
+          name: item.name,
+          qty: parseFloat(item.qty),
+          unit: item.unit,
+          pricePerUnit: parseFloat(item.pricePerUnit),
+          total: item.total,
+          projectId: item.projectId,
+        })),
+      };
 
-    addPurchase(purchase);
-    setSaved(true);
+      await addPurchase(purchase);
+      setSaved(true);
 
-    setTimeout(() => {
-      setSaved(false);
-      // Reset form
-      setVendorId("");
-      setInvoiceNo("");
-      setTotalHeader("");
-      setItems([
-        {
-          id: 1,
-          name: "",
-          qty: 1,
-          unit: "Pcs",
-          pricePerUnit: "",
-          projectId: "",
-        },
-      ]);
-    }, 2000);
+      setTimeout(() => {
+        setSaved(false);
+        // Reset form
+        setVendorId("");
+        setInvoiceNo("");
+        setTotalHeader("");
+        setItems([
+          {
+            id: 1,
+            name: "",
+            qty: 1,
+            unit: "Pcs",
+            pricePerUnit: "",
+            projectId: "",
+          },
+        ]);
+      }, 2000);
+    } catch (err) {
+      toast.error("Gagal menyimpan transaksi: " + err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const activeProjects = projects.filter((p) => p.status === "active");
@@ -494,12 +505,26 @@ export default function Belanja() {
         <button
           className={`btn ${saved ? "btn-secondary" : "btn-primary"} btn-lg`}
           onClick={handleSave}
-          disabled={saved || !calculations.isMatch || !vendorId || !invoiceNo}
+          disabled={
+            saved ||
+            !calculations.isMatch ||
+            !vendorId ||
+            !invoiceNo ||
+            isLoading
+          }
         >
           {saved ? (
             <>
               <CheckCircle size={20} />
               TERSIMPAN!
+            </>
+          ) : isLoading ? (
+            <>
+              <div
+                className="spinner-border spinner-border-sm text-light me-2"
+                role="status"
+              ></div>
+              Menyimpan...
             </>
           ) : (
             <>

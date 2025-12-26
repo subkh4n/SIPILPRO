@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useData } from "../../context/DataContext";
+import { useToast } from "../../context/ToastContext";
 import { formatCurrency } from "../../utils/helpers";
 import {
   format,
@@ -30,6 +31,7 @@ import {
 
 export default function InputAbsensi() {
   const { workers, projects } = useData();
+  const toast = useToast();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isHoliday, setIsHoliday] = useState(false);
@@ -166,14 +168,16 @@ export default function InputAbsensi() {
   // Handle save
   const handleSave = () => {
     if (selectedWorkers.length === 0) {
-      alert("Pilih minimal 1 pekerja!");
+      toast.warning("Pilih minimal 1 pekerja!");
       return;
     }
     if (!confirmed) {
-      alert("Centang konfirmasi terlebih dahulu!");
+      toast.warning("Centang konfirmasi terlebih dahulu!");
       return;
     }
-    alert(`Absensi berhasil disimpan untuk ${selectedWorkers.length} pekerja!`);
+    toast.success(
+      `Absensi berhasil disimpan untuk ${selectedWorkers.length} pekerja!`
+    );
   };
 
   return (

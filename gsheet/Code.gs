@@ -28,10 +28,11 @@ const SHEETS = {
 };
 
 // ============================================
-// MAIN HANDLERS
+// LEGACY HANDLERS (DISABLED - use ApiRouter.gs instead)
+// These functions are renamed to avoid conflict with ApiRouter.gs
 // ============================================
 
-function doGet(e) {
+function _legacyDoGet(e) {
   const action = e.parameter.action;
   const sheet = e.parameter.sheet;
 
@@ -86,7 +87,7 @@ function doGet(e) {
   );
 }
 
-function doPost(e) {
+function _legacyDoPost(e) {
   const action = e.parameter.action;
   const sheet = e.parameter.sheet;
   const data = JSON.parse(e.postData.contents);
@@ -286,14 +287,25 @@ function setupSpreadsheet() {
     "status",
   ]);
 
-  // Tukang sheet
+  // Tukang sheet - Updated with complete fields
   createSheetIfNotExists(ss, SHEETS.TUKANG, [
     "id",
+    "nip",
     "name",
+    "jabatan",
     "skill",
+    "tipe",
+    "phone",
+    "alamat",
     "rateNormal",
     "rateOvertime",
     "rateHoliday",
+    "status",
+    "foto",
+    "tanggalMasuk",
+    "tanggalLahir",
+    "noKTP",
+    "bpjs",
   ]);
 
   // Vendor sheet
@@ -323,8 +335,7 @@ function setupSpreadsheet() {
     "paidDate",
   ]);
 
-  // Add sample data
-  addSampleData(ss);
+  // Sample data removed - langsung ambil data dari Google Sheets
 
   return "Setup complete!";
 }
@@ -342,59 +353,4 @@ function createSheetIfNotExists(ss, sheetName, headers) {
 
   return sheet;
 }
-
-function addSampleData(ss) {
-  // Sample Proyek
-  const proyekSheet = ss.getSheetByName(SHEETS.PROYEK);
-  if (proyekSheet.getLastRow() === 1) {
-    proyekSheet.appendRow([
-      "proj-001",
-      "Ruko Blok A",
-      "Jl. Sudirman No.12",
-      "active",
-    ]);
-    proyekSheet.appendRow([
-      "proj-002",
-      "Rumah Cluster B",
-      "Perumahan Harmoni",
-      "active",
-    ]);
-    proyekSheet.appendRow([
-      "proj-003",
-      "Gudang Industri",
-      "Kawasan Industri Cikupa",
-      "active",
-    ]);
-  }
-
-  // Sample Tukang
-  const tukangSheet = ss.getSheetByName(SHEETS.TUKANG);
-  if (tukangSheet.getLastRow() === 1) {
-    tukangSheet.appendRow(["wrk-001", "Budi", "Ahli", 25000, 35000, 40000]);
-    tukangSheet.appendRow(["wrk-002", "Agus", "Ahli", 25000, 35000, 40000]);
-    tukangSheet.appendRow(["wrk-003", "Dedi", "Pembantu", 15000, 20000, 25000]);
-  }
-
-  // Sample Vendor
-  const vendorSheet = ss.getSheetByName(SHEETS.VENDOR);
-  if (vendorSheet.getLastRow() === 1) {
-    vendorSheet.appendRow([
-      "vnd-001",
-      "TB. Sinar Jaya",
-      "Jl. Raya Serang KM.5",
-      "021-12345678",
-    ]);
-    vendorSheet.appendRow([
-      "vnd-002",
-      "TB. Abadi",
-      "Jl. Industri No.10",
-      "021-87654321",
-    ]);
-    vendorSheet.appendRow([
-      "vnd-003",
-      "Toko Besi Kuat",
-      "Pasar Material Blok C",
-      "0812-3456-7890",
-    ]);
-  }
-}
+// Sample data function removed - data langsung dari Google Sheets

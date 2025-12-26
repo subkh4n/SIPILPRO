@@ -227,9 +227,9 @@ function uploadFotoFromBase64(base64Data, fileName, mimeType) {
     return {
       fileId: fileId,
       url: file.getUrl(),
-      // Direct link for displaying image
-      thumbnailUrl: `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`,
-      directUrl: `https://drive.google.com/uc?export=view&id=${fileId}`,
+      // Use drive.google.com/thumbnail format - more stable and less rate-limited
+      thumbnailUrl: `https://drive.google.com/thumbnail?id=${fileId}&sz=w200`,
+      directUrl: `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`,
     };
   } catch (error) {
     throw new Error("Gagal upload foto: " + error.message);

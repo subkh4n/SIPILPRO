@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useData } from "../context/DataContext";
+import { useToast } from "../context/ToastContext";
 import {
   isHoliday,
   formatCurrency,
@@ -12,6 +13,7 @@ import { Copy, Plus, Trash2, ChevronDown } from "lucide-react";
 
 export default function Absensi() {
   const { workers, projects, addAttendance } = useData();
+  const toast = useToast();
 
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [globalProject, setGlobalProject] = useState("all");
@@ -125,7 +127,7 @@ export default function Absensi() {
     );
 
     if (validRows.length === 0) {
-      alert("Tidak ada data valid untuk disimpan!");
+      toast.warning("Tidak ada data valid untuk disimpan!");
       return;
     }
 
@@ -147,7 +149,7 @@ export default function Absensi() {
       });
     });
 
-    alert(`${validRows.length} data absensi berhasil disimpan!`);
+    toast.success(`${validRows.length} data absensi berhasil disimpan!`);
     setRows([
       {
         id: 1,

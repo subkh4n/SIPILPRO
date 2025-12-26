@@ -1,7 +1,7 @@
 // API Configuration
 // Replace this with your deployed Google Apps Script Web App URL
 export const API_URL =
-  "https://script.google.com/macros/s/AKfycbxATy1aYPNnmfh6GQ2_fJjHjpjB-GYf7xecxZwnu1SlZyqnAWFy0POzlp4FAckqzW5q/exec";
+  "https://script.google.com/macros/s/AKfycbzT2NdhcW3_YBx5INf8pmaZ-7Voi1YD0DTIVIrYPikfXkPkw3bZSlZrY1f0gK1A7SBj/exec";
 
 // Sheet names mapping
 const SHEETS = {

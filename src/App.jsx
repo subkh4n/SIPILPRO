@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { DataProvider } from "./context/DataContext";
+import { ToastProvider } from "./context/ToastContext";
 import Layout from "./components/Layout";
 
 // Core Pages
@@ -75,73 +76,81 @@ function PlaceholderPage({ title, description }) {
 
 function App() {
   return (
-    <DataProvider>
-      <BrowserRouter>
-        <Layout>
-          <Routes>
-            {/* Dashboard */}
-            <Route path="/" element={<Dashboard />} />
+    <ToastProvider>
+      <DataProvider>
+        <BrowserRouter>
+          <Layout>
+            <Routes>
+              {/* Dashboard */}
+              <Route path="/" element={<Dashboard />} />
 
-            {/* Master Data */}
-            <Route path="/master/pegawai" element={<Pegawai />} />
-            <Route path="/master/pegawai/tambah" element={<TambahPegawai />} />
-            <Route path="/master/pegawai/edit/:id" element={<EditPegawai />} />
-            <Route path="/master/proyek" element={<Proyek />} />
-            <Route path="/master/vendor" element={<Vendor />} />
-            <Route path="/master/kalender" element={<Kalender />} />
+              {/* Master Data */}
+              <Route path="/master/pegawai" element={<Pegawai />} />
+              <Route
+                path="/master/pegawai/tambah"
+                element={<TambahPegawai />}
+              />
+              <Route
+                path="/master/pegawai/edit/:id"
+                element={<EditPegawai />}
+              />
+              <Route path="/master/proyek" element={<Proyek />} />
+              <Route path="/master/vendor" element={<Vendor />} />
+              <Route path="/master/kalender" element={<Kalender />} />
 
-            {/* Operasional */}
-            <Route path="/operasional/scan-absen" element={<ScanAbsen />} />
-            <Route path="/operasional/absensi" element={<Absensi />} />
-            <Route path="/operasional/log-absensi" element={<LogAbsensi />} />
-            <Route
-              path="/operasional/input-absensi"
-              element={<InputAbsensi />}
-            />
-            <Route path="/operasional/scan-nota" element={<ScanNota />} />
-            <Route path="/operasional/belanja" element={<Belanja />} />
-            <Route
-              path="/operasional/verifikasi"
-              element={<VerifikasiNota />}
-            />
-            <Route path="/operasional/jatuh-tempo" element={<JatuhTempo />} />
+              {/* Operasional */}
+              <Route path="/operasional/scan-absen" element={<ScanAbsen />} />
+              <Route path="/operasional/absensi" element={<Absensi />} />
+              <Route path="/operasional/log-absensi" element={<LogAbsensi />} />
+              <Route
+                path="/operasional/input-absensi"
+                element={<InputAbsensi />}
+              />
+              <Route path="/operasional/scan-nota" element={<ScanNota />} />
+              <Route path="/operasional/belanja" element={<Belanja />} />
+              <Route
+                path="/operasional/verifikasi"
+                element={<VerifikasiNota />}
+              />
+              <Route path="/operasional/jatuh-tempo" element={<JatuhTempo />} />
 
-            {/* Keuangan */}
-            <Route path="/keuangan/payroll" element={<Payroll />} />
-            <Route path="/keuangan/kas" element={<ArusKas />} />
-            <Route path="/keuangan/hutang" element={<Hutang />} />
-            <Route
-              path="/keuangan/piutang"
-              element={
-                <PlaceholderPage
-                  title="Piutang"
-                  description="Monitoring piutang (Coming soon)"
-                />
-              }
-            />
+              {/* Keuangan */}
+              <Route path="/keuangan/payroll" element={<Payroll />} />
+              <Route path="/keuangan/kas" element={<ArusKas />} />
+              <Route path="/keuangan/hutang" element={<Hutang />} />
+              <Route
+                path="/keuangan/piutang"
+                element={
+                  <PlaceholderPage
+                    title="Piutang"
+                    description="Monitoring piutang (Coming soon)"
+                  />
+                }
+              />
 
-            <Route path="/laporan/realisasi" element={<LaporanRealisasi />} />
-            <Route path="/laporan/absensi" element={<RekapAbsensi />} />
-            <Route path="/laporan/vendor" element={<BiayaVendor />} />
-            <Route path="/laporan/payroll" element={<LaporanPayroll />} />
-            <Route path="/laporan/proyek" element={<LaporanProyek />} />
-            <Route
-              path="/laporan/detil-biaya"
-              element={<LaporanDetilBiaya />}
-            />
+              <Route path="/laporan/realisasi" element={<LaporanRealisasi />} />
+              <Route path="/laporan/absensi" element={<RekapAbsensi />} />
+              <Route path="/laporan/vendor" element={<BiayaVendor />} />
+              <Route path="/laporan/payroll" element={<LaporanPayroll />} />
+              <Route path="/laporan/proyek" element={<LaporanProyek />} />
+              <Route
+                path="/laporan/detil-biaya"
+                element={<LaporanDetilBiaya />}
+              />
 
-            {/* Settings */}
-            <Route path="/settings" element={<Pengaturan />} />
+              {/* Settings */}
+              <Route path="/settings" element={<Pengaturan />} />
 
-            {/* Legacy routes - redirect */}
-            <Route path="/absensi" element={<Absensi />} />
-            <Route path="/belanja" element={<Belanja />} />
-            <Route path="/hutang" element={<Hutang />} />
-            <Route path="/proyek" element={<Proyek />} />
-          </Routes>
-        </Layout>
-      </BrowserRouter>
-    </DataProvider>
+              {/* Legacy routes - redirect */}
+              <Route path="/absensi" element={<Absensi />} />
+              <Route path="/belanja" element={<Belanja />} />
+              <Route path="/hutang" element={<Hutang />} />
+              <Route path="/proyek" element={<Proyek />} />
+            </Routes>
+          </Layout>
+        </BrowserRouter>
+      </DataProvider>
+    </ToastProvider>
   );
 }
 

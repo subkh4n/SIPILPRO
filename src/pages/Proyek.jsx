@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useData } from "../context/DataContext";
+import { useToast } from "../context/ToastContext";
 import { formatCurrency } from "../utils/helpers";
 import {
   Plus,
@@ -26,13 +27,13 @@ import {
 export default function Proyek() {
   const {
     projects,
-    purchases,
     getProjectCosts,
     addProject,
     updateProject,
     deleteProject,
     refreshData,
   } = useData();
+  const toast = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterLocation, setFilterLocation] = useState("all");
@@ -125,7 +126,7 @@ export default function Proyek() {
       setFormData({ name: "", location: "", targetRAP: "" });
       refreshData();
     } catch (err) {
-      alert("Gagal menambah proyek: " + err.message);
+      toast.error("Gagal menambah proyek: " + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -154,7 +155,7 @@ export default function Proyek() {
       setEditModal(null);
       refreshData();
     } catch (err) {
-      alert("Gagal update proyek: " + err.message);
+      toast.error("Gagal update proyek: " + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -168,7 +169,7 @@ export default function Proyek() {
       setDeleteConfirm(null);
       refreshData();
     } catch (err) {
-      alert("Gagal hapus proyek: " + err.message);
+      toast.error("Gagal hapus proyek: " + err.message);
     } finally {
       setIsLoading(false);
     }

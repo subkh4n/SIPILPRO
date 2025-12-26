@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useToast } from "../context/ToastContext";
 import {
   LayoutDashboard,
   Users,
@@ -152,6 +153,7 @@ function MenuGroup({ group, isOpen, onToggle, location }) {
 
 export default function Layout({ children }) {
   const location = useLocation();
+  const toast = useToast();
   const [openMenus, setOpenMenus] = useState(["operasional"]); // Default open
 
   const toggleMenu = (menuId) => {
@@ -259,7 +261,7 @@ export default function Layout({ children }) {
           {/* Logout Button */}
           <button
             className="nav-link"
-            onClick={() => alert("Logout clicked")}
+            onClick={() => toast.info("Logout clicked")}
             style={{
               width: "100%",
               marginTop: "var(--space-2)",

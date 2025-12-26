@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useData } from "../../context/DataContext";
+import { useToast } from "../../context/ToastContext";
 import { formatCurrency } from "../../utils/helpers";
 import {
   Store,
@@ -26,6 +27,7 @@ export default function Vendor() {
     deleteVendor,
     refreshData,
   } = useData();
+  const toast = useToast();
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -63,7 +65,7 @@ export default function Vendor() {
       setShowForm(false);
       refreshData();
     } catch (err) {
-      alert("Gagal menambah vendor: " + err.message);
+      toast.error("Gagal menambah vendor: " + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -97,7 +99,7 @@ export default function Vendor() {
       setEditModal(null);
       refreshData();
     } catch (err) {
-      alert("Gagal update vendor: " + err.message);
+      toast.error("Gagal update vendor: " + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -111,7 +113,7 @@ export default function Vendor() {
       setDeleteConfirm(null);
       refreshData();
     } catch (err) {
-      alert("Gagal hapus vendor: " + err.message);
+      toast.error("Gagal hapus vendor: " + err.message);
     } finally {
       setIsLoading(false);
     }
