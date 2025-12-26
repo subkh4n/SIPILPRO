@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
+import { useData } from "../../context/DataContext";
+import { useToast } from "../../context/ToastContext";
 import {
   QrCode,
   Camera,
@@ -11,39 +13,62 @@ import {
   Zap,
   AlertCircle,
   CameraOff,
+  LogIn,
+  LogOut,
+  Home,
+  User,
 } from "lucide-react";
 
 export default function ScanAbsen() {
+  const { workers, projects, attendance, addAttendance } = useData();
+  const toast = useToast();
+
   const [isScanning, setIsScanning] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [lastScan, setLastScan] = useState(null);
   const [error, setError] = useState(null);
-  const [scanHistory, setScanHistory] = useState([
-    {
-      id: 1,
-      name: "Budi",
-      time: "08:05",
-      project: "Ruko Blok A",
-      type: "masuk",
-    },
-    {
-      id: 2,
-      name: "Agus",
-      time: "08:12",
-      project: "Rumah Cluster B",
-      type: "masuk",
-    },
-    {
-      id: 3,
-      name: "Dedi",
-      time: "08:15",
-      project: "Ruko Blok A",
-      type: "masuk",
-    },
-  ]);
+  const [selectedProject, setSelectedProject] = useState("");
+  const [todayScans, setTodayScans] = useState([]);
 
   const html5QrCodeRef = useRef(null);
   const scannerContainerId = "qr-reader";
+
+  // Get today's date string
+  const getTodayString = () => {
+    return new Date().toISOString().split("T")[0];
+  };
+
+  // Get current time string
+  const getTimeString = () => {
+    return new Date().toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  // Load today's scans from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("todayScans");
+    const savedDate = localStorage.getItem("todayScansDate");
+    const today = getTodayString();
+
+    if (saved && savedDate === today) {
+      setTodayScans(JSON.parse(saved));
+    } else {
+      // Clear old data if it's a new day
+      localStorage.setItem("todayScans", JSON.stringify([]));
+      localStorage.setItem("todayScansDate", today);
+      setTodayScans([]);
+    }
+  }, []);
+
+  // Save todayScans to localStorage whenever it changes
+  useEffect(() => {
+    if (todayScans.length > 0) {
+      localStorage.setItem("todayScans", JSON.stringify(todayScans));
+      localStorage.setItem("todayScansDate", getTodayString());
+    }
+  }, [todayScans]);
 
   // Cleanup scanner on unmount
   useEffect(() => {
@@ -54,7 +79,43 @@ export default function ScanAbsen() {
     };
   }, []);
 
+  // Get employee's attendance status for today
+  const getEmployeeTodayStatus = (employeeId) => {
+    const employeeScans = todayScans.filter((s) => s.employeeId === employeeId);
+    if (employeeScans.length === 0) {
+      return { status: "not_checked_in", lastScan: null, scans: [] };
+    }
+
+    const lastScan = employeeScans[employeeScans.length - 1];
+    return {
+      status: lastScan.type,
+      lastScan,
+      scans: employeeScans,
+    };
+  };
+
+  // Determine next attendance type based on current status
+  const getNextAttendanceType = (currentStatus, lastScan) => {
+    switch (currentStatus) {
+      case "not_checked_in":
+        return "checkin";
+      case "checkin":
+        return "checkout";
+      case "checkout":
+        return "checkin"; // Can check in again to another project
+      case "pulang":
+        return "already_done"; // Already done for the day
+      default:
+        return "checkin";
+    }
+  };
+
   const handleStartScan = async () => {
+    if (!selectedProject) {
+      setError("Silakan pilih proyek terlebih dahulu");
+      return;
+    }
+
     setError(null);
     setIsInitializing(true);
     setLastScan(null);
@@ -67,19 +128,16 @@ export default function ScanAbsen() {
         {
           fps: 15,
           qrbox: (viewfinderWidth, viewfinderHeight) => {
-            // Use 70% of the smaller dimension for qrbox
             const minDimension = Math.min(viewfinderWidth, viewfinderHeight);
             const qrboxSize = Math.floor(minDimension * 0.7);
             return { width: qrboxSize, height: qrboxSize };
           },
           experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true
+            useBarCodeDetectorIfSupported: true,
           },
           rememberLastUsedCamera: true,
-          showTorchButtonIfSupported: false,
         },
         (decodedText) => {
-          // Success callback
           console.log("QR Code detected:", decodedText);
           handleScanSuccess(decodedText);
         },
@@ -120,37 +178,172 @@ export default function ScanAbsen() {
       navigator.vibrate(200);
     }
 
-    // Parse QR data (expected format: "EMPLOYEE_ID:PROJECT_ID" or just employee name for demo)
-    const names = ["Budi", "Agus", "Dedi", "Eko", "Faisal", "Gani", "Hadi"];
-    const projects = ["Ruko Blok A", "Rumah Cluster B", "Gudang Industri"];
+    // Try to parse QR data
+    let qrData = null;
+    try {
+      qrData = JSON.parse(decodedText);
+    } catch {
+      // If not JSON, try to find employee by name
+      const foundWorker = workers.find(
+        (w) => w.name.toLowerCase() === decodedText.toLowerCase()
+      );
+      if (foundWorker) {
+        qrData = {
+          type: "ATTENDANCE",
+          employeeId: foundWorker.id,
+          nip: foundWorker.nip,
+          name: foundWorker.name,
+        };
+      }
+    }
 
-    // For demo, use scanned text as name or random if not recognized
-    const employeeName = names.includes(decodedText)
-      ? decodedText
-      : names[Math.floor(Math.random() * names.length)];
-    const projectName = projects[Math.floor(Math.random() * projects.length)];
+    // Validate QR data
+    if (!qrData || qrData.type !== "ATTENDANCE") {
+      setError("QR Code tidak valid. Gunakan QR dari kartu pegawai.");
+      setLastScan({ success: false, error: "QR tidak valid" });
+      handleStopScan();
+      return;
+    }
+
+    // Find employee in workers list
+    let employee = workers.find((w) => w.id === qrData.employeeId);
+    if (!employee) {
+      // Try to find by NIP
+      employee = workers.find((w) => w.nip === qrData.nip);
+    }
+    if (!employee) {
+      // Try to find by name
+      employee = workers.find(
+        (w) => w.name.toLowerCase() === qrData.name.toLowerCase()
+      );
+    }
+
+    if (!employee) {
+      setError(`Pegawai "${qrData.name}" tidak ditemukan dalam database.`);
+      setLastScan({ success: false, error: "Pegawai tidak ditemukan" });
+      handleStopScan();
+      return;
+    }
+
+    // Get selected project details
+    const project = projects.find((p) => p.id === selectedProject);
+    if (!project) {
+      setError("Proyek tidak valid");
+      handleStopScan();
+      return;
+    }
+
+    // Check today's status for this employee
+    const todayStatus = getEmployeeTodayStatus(employee.id);
+    let attendanceType = getNextAttendanceType(
+      todayStatus.status,
+      todayStatus.lastScan
+    );
+
+    // If already done for the day
+    if (attendanceType === "already_done") {
+      setError(`${employee.name} sudah pulang hari ini.`);
+      setLastScan({
+        success: false,
+        name: employee.name,
+        error: "Sudah pulang",
+      });
+      handleStopScan();
+      return;
+    }
+
+    // Check if this is a checkout and offer "pulang" option
+    const isLastCheckout =
+      todayStatus.scans.length >= 2 && attendanceType === "checkout";
 
     const now = new Date();
-    const timeStr = now.toLocaleTimeString("id-ID", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const timeStr = getTimeString();
 
     const scan = {
       id: Date.now(),
-      name: employeeName,
+      employeeId: employee.id,
+      name: employee.name,
+      nip: employee.nip || "-",
       time: timeStr,
-      project: projectName,
-      type: "masuk",
+      timestamp: now.toISOString(),
+      date: getTodayString(),
+      project: project.name,
+      projectId: project.id,
+      type: attendanceType,
       success: true,
-      rawData: decodedText,
     };
 
+    // Add to today's scans
+    setTodayScans((prev) => [...prev, scan]);
     setLastScan(scan);
-    setScanHistory((prev) => [scan, ...prev.slice(0, 9)]);
+
+    // Also add to global attendance if needed
+    if (attendanceType === "checkin" || attendanceType === "checkout") {
+      const attendanceRecord = {
+        date: getTodayString(),
+        workerId: employee.id,
+        workerName: employee.name,
+        projectId: project.id,
+        projectName: project.name,
+        type: attendanceType,
+        time: timeStr,
+        wage: employee.rateNormal || 0,
+      };
+
+      addAttendance(attendanceRecord);
+    }
+
+    // Show success toast
+    const typeLabel =
+      attendanceType === "checkin"
+        ? "Check-in"
+        : attendanceType === "checkout"
+        ? "Check-out"
+        : "Pulang";
+    toast.success(`${typeLabel} berhasil untuk ${employee.name}!`);
 
     // Stop scanner after successful scan
     handleStopScan();
+  };
+
+  const handleMarkPulang = (employeeId, employeeName) => {
+    const project = projects.find((p) => p.id === selectedProject);
+    const timeStr = getTimeString();
+
+    const scan = {
+      id: Date.now(),
+      employeeId,
+      name: employeeName,
+      time: timeStr,
+      timestamp: new Date().toISOString(),
+      date: getTodayString(),
+      project: project?.name || "-",
+      projectId: selectedProject,
+      type: "pulang",
+      success: true,
+    };
+
+    setTodayScans((prev) => [...prev, scan]);
+    toast.success(`${employeeName} telah ditandai PULANG`);
+  };
+
+  // Get active projects only
+  const activeProjects = projects.filter(
+    (p) => p.status === "active" || p.status === "aktif" || !p.status
+  );
+
+  // Get type badge color
+  const getTypeBadge = (type) => {
+    switch (type) {
+      case "checkin":
+        return { class: "badge-success", label: "Check-in", icon: LogIn };
+      case "checkout":
+        return { class: "badge-warning", label: "Check-out", icon: LogOut };
+      case "pulang":
+        return { class: "badge-secondary", label: "Pulang", icon: Home };
+      default:
+        return { class: "badge-primary", label: type, icon: Clock };
+    }
   };
 
   return (
@@ -303,13 +496,14 @@ export default function ScanAbsen() {
             box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
           }
 
-          .scan-btn-primary:hover {
+          .scan-btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 6px 30px rgba(59, 130, 246, 0.5);
           }
 
-          .scan-btn-primary:active {
-            transform: translateY(0);
+          .scan-btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
           }
 
           .scan-btn-danger {
@@ -481,6 +675,33 @@ export default function ScanAbsen() {
             )}
           </div>
 
+          {/* Project Selector */}
+          <div className="form-group" style={{ marginBottom: "var(--space-4)" }}>
+            <label className="form-label">
+              <Building2
+                size={16}
+                style={{ marginRight: 6, verticalAlign: "middle" }}
+              />
+              Pilih Proyek
+            </label>
+            <select
+              className="form-select"
+              value={selectedProject}
+              onChange={(e) => {
+                setSelectedProject(e.target.value);
+                setError(null);
+              }}
+              disabled={isScanning}
+            >
+              <option value="">-- Pilih Proyek --</option>
+              {activeProjects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Camera Preview */}
           <div className={`scanner-frame ${isScanning ? "scanning" : ""}`}>
             {/* Corner Decorations */}
@@ -542,7 +763,9 @@ export default function ScanAbsen() {
                         fontSize: "var(--text-sm)",
                       }}
                     >
-                      Tekan tombol untuk mulai scan
+                      {selectedProject
+                        ? "Tekan tombol untuk mulai scan"
+                        : "Pilih proyek terlebih dahulu"}
                     </p>
                   </>
                 )}
@@ -556,7 +779,7 @@ export default function ScanAbsen() {
               <button
                 className="scan-btn scan-btn-primary"
                 onClick={handleStartScan}
-                disabled={isInitializing}
+                disabled={isInitializing || !selectedProject}
               >
                 <Camera size={22} />
                 {isInitializing ? "Memulai..." : "Mulai Scan"}
@@ -587,7 +810,7 @@ export default function ScanAbsen() {
                     marginBottom: 4,
                   }}
                 >
-                  Gagal Mengakses Kamera
+                  Error
                 </div>
                 <div
                   style={{
@@ -602,7 +825,7 @@ export default function ScanAbsen() {
           )}
 
           {/* Last Scan Result */}
-          {lastScan && (
+          {lastScan && lastScan.success && (
             <div className="success-card">
               <div
                 style={{
@@ -634,15 +857,23 @@ export default function ScanAbsen() {
                       color: "var(--success-400)",
                     }}
                   >
-                    Berhasil!
+                    {lastScan.type === "checkin"
+                      ? "Check-in Berhasil!"
+                      : lastScan.type === "checkout"
+                      ? "Check-out Berhasil!"
+                      : "Berhasil!"}
                   </div>
                   <div
                     style={{
                       fontWeight: "600",
                       color: "var(--text-primary)",
                       marginTop: 2,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "var(--space-2)",
                     }}
                   >
+                    <User size={16} />
                     {lastScan.name}
                   </div>
                   <div
@@ -661,6 +892,17 @@ export default function ScanAbsen() {
                     <Clock size={14} />
                     {lastScan.time}
                   </div>
+                  {lastScan.nip && lastScan.nip !== "-" && (
+                    <div
+                      style={{
+                        fontSize: "var(--text-xs)",
+                        color: "var(--text-muted)",
+                        marginTop: 4,
+                      }}
+                    >
+                      NIP: {lastScan.nip}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -686,8 +928,12 @@ export default function ScanAbsen() {
             </h3>
             <button
               className="btn btn-ghost btn-sm"
-              onClick={() => setScanHistory([])}
+              onClick={() => {
+                setTodayScans([]);
+                localStorage.setItem("todayScans", JSON.stringify([]));
+              }}
               style={{ padding: "var(--space-2)" }}
+              title="Reset riwayat"
             >
               <RefreshCw size={16} />
             </button>
@@ -698,77 +944,87 @@ export default function ScanAbsen() {
               display: "flex",
               flexDirection: "column",
               gap: "var(--space-3)",
+              maxHeight: "400px",
+              overflowY: "auto",
             }}
           >
-            {scanHistory.length > 0 ? (
-              scanHistory.map((scan, index) => (
-                <div
-                  key={scan.id}
-                  className="history-item"
-                  style={{
-                    animation: `fadeIn 0.3s ease-out ${index * 0.05}s both`,
-                  }}
-                >
+            {todayScans.length > 0 ? (
+              [...todayScans].reverse().map((scan, index) => {
+                const typeBadge = getTypeBadge(scan.type);
+                const TypeIcon = typeBadge.icon;
+                return (
                   <div
+                    key={scan.id}
+                    className="history-item"
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "var(--space-3)",
+                      animation: `fadeIn 0.3s ease-out ${index * 0.05}s both`,
                     }}
                   >
-                    <div className="avatar-gradient">{scan.name.charAt(0)}</div>
-                    <div>
-                      <div
-                        style={{
-                          fontWeight: "600",
-                          color: "var(--text-primary)",
-                        }}
-                      >
-                        {scan.name}
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "var(--space-2)",
-                          fontSize: "var(--text-xs)",
-                          color: "var(--text-muted)",
-                          marginTop: 2,
-                        }}
-                      >
-                        <Building2 size={12} />
-                        {scan.project}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ textAlign: "right" }}>
                     <div
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: "var(--space-1)",
-                        fontSize: "var(--text-sm)",
-                        fontWeight: "600",
-                        color: "var(--text-primary)",
+                        gap: "var(--space-3)",
                       }}
                     >
-                      <Clock size={14} />
-                      {scan.time}
+                      <div className="avatar-gradient">
+                        {scan.name.charAt(0)}
+                      </div>
+                      <div>
+                        <div
+                          style={{
+                            fontWeight: "600",
+                            color: "var(--text-primary)",
+                          }}
+                        >
+                          {scan.name}
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "var(--space-2)",
+                            fontSize: "var(--text-xs)",
+                            color: "var(--text-muted)",
+                            marginTop: 2,
+                          }}
+                        >
+                          <Building2 size={12} />
+                          {scan.project}
+                        </div>
+                      </div>
                     </div>
-                    <span
-                      className={`badge ${
-                        scan.type === "masuk"
-                          ? "badge-success"
-                          : "badge-warning"
-                      }`}
-                      style={{ marginTop: 4 }}
-                    >
-                      {scan.type === "masuk" ? "Masuk" : "Keluar"}
-                    </span>
+
+                    <div style={{ textAlign: "right" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "var(--space-1)",
+                          fontSize: "var(--text-sm)",
+                          fontWeight: "600",
+                          color: "var(--text-primary)",
+                        }}
+                      >
+                        <Clock size={14} />
+                        {scan.time}
+                      </div>
+                      <span
+                        className={`badge ${typeBadge.class}`}
+                        style={{
+                          marginTop: 4,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <TypeIcon size={12} />
+                        {typeBadge.label}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div
                 style={{
@@ -800,7 +1056,7 @@ export default function ScanAbsen() {
           }}
         >
           <Zap size={18} style={{ color: "var(--warning-400)" }} />
-          Tips Cepat
+          Tips Penggunaan
         </h4>
         <div
           style={{
@@ -824,41 +1080,6 @@ export default function ScanAbsen() {
                 width: 32,
                 height: 32,
                 borderRadius: "var(--radius-full)",
-                background: "rgba(59, 130, 246, 0.15)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <span style={{ color: "var(--primary-400)", fontWeight: "700" }}>
-                1
-              </span>
-            </div>
-            <p
-              style={{
-                fontSize: "var(--text-sm)",
-                color: "var(--text-secondary)",
-              }}
-            >
-              Tekan "Mulai Scan" untuk mengaktifkan kamera
-            </p>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "var(--space-3)",
-              padding: "var(--space-3)",
-              background: "var(--bg-tertiary)",
-              borderRadius: "var(--radius-lg)",
-            }}
-          >
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: "var(--radius-full)",
                 background: "rgba(34, 197, 94, 0.15)",
                 display: "flex",
                 alignItems: "center",
@@ -866,19 +1087,23 @@ export default function ScanAbsen() {
                 flexShrink: 0,
               }}
             >
-              <span style={{ color: "var(--success-400)", fontWeight: "700" }}>
-                2
-              </span>
+              <LogIn size={16} style={{ color: "var(--success-400)" }} />
             </div>
-            <p
-              style={{
-                fontSize: "var(--text-sm)",
-                color: "var(--text-secondary)",
-              }}
-            >
-              Arahkan kamera ke QR Code pada kartu pegawai
-            </p>
+            <div>
+              <div style={{ fontWeight: "600", fontSize: "var(--text-sm)" }}>
+                Check-in
+              </div>
+              <div
+                style={{
+                  fontSize: "var(--text-xs)",
+                  color: "var(--text-muted)",
+                }}
+              >
+                Scan pertama saat tiba di proyek
+              </div>
+            </div>
           </div>
+
           <div
             style={{
               display: "flex",
@@ -894,25 +1119,67 @@ export default function ScanAbsen() {
                 width: 32,
                 height: 32,
                 borderRadius: "var(--radius-full)",
-                background: "rgba(139, 92, 246, 0.15)",
+                background: "rgba(245, 158, 11, 0.15)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
               }}
             >
-              <span style={{ color: "var(--accent-400)", fontWeight: "700" }}>
-                3
-              </span>
+              <LogOut size={16} style={{ color: "var(--warning-400)" }} />
             </div>
-            <p
+            <div>
+              <div style={{ fontWeight: "600", fontSize: "var(--text-sm)" }}>
+                Check-out
+              </div>
+              <div
+                style={{
+                  fontSize: "var(--text-xs)",
+                  color: "var(--text-muted)",
+                }}
+              >
+                Scan kedua saat selesai dari proyek
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "var(--space-3)",
+              padding: "var(--space-3)",
+              background: "var(--bg-tertiary)",
+              borderRadius: "var(--radius-lg)",
+            }}
+          >
+            <div
               style={{
-                fontSize: "var(--text-sm)",
-                color: "var(--text-secondary)",
+                width: 32,
+                height: 32,
+                borderRadius: "var(--radius-full)",
+                background: "rgba(59, 130, 246, 0.15)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
               }}
             >
-              Kehadiran otomatis tercatat setelah scan berhasil
-            </p>
+              <Building2 size={16} style={{ color: "var(--primary-400)" }} />
+            </div>
+            <div>
+              <div style={{ fontWeight: "600", fontSize: "var(--text-sm)" }}>
+                Pindah Proyek
+              </div>
+              <div
+                style={{
+                  fontSize: "var(--text-xs)",
+                  color: "var(--text-muted)",
+                }}
+              >
+                Checkout lalu pilih proyek baru, scan lagi
+              </div>
+            </div>
           </div>
         </div>
       </div>
