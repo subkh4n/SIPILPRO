@@ -153,24 +153,25 @@ export default function ScanAbsen() {
             grid-template-columns: 1fr 1fr;
             gap: var(--space-6);
           }
-          
+
           @media (max-width: 900px) {
             .scan-page-grid {
               grid-template-columns: 1fr;
             }
           }
-          
+
           .scanner-frame {
             position: relative;
             aspect-ratio: 1;
+            min-height: 300px;
             background: linear-gradient(135deg, var(--gray-900), var(--gray-800));
             border-radius: var(--radius-2xl);
-            overflow: hidden;
+            overflow: visible;
             display: flex;
             align-items: center;
             justify-content: center;
           }
-          
+
           .scanner-frame::before {
             content: "";
             position: absolute;
@@ -178,37 +179,37 @@ export default function ScanAbsen() {
             background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
             z-index: 0;
           }
-          
+
           .scanner-corners {
             position: absolute;
             inset: 15%;
             z-index: 2;
             pointer-events: none;
           }
-          
+
           .scanner-corner {
             position: absolute;
             width: 30px;
             height: 30px;
             border: 3px solid var(--primary-400);
           }
-          
+
           .scanner-corner.tl { top: 0; left: 0; border-right: none; border-bottom: none; border-radius: 8px 0 0 0; }
           .scanner-corner.tr { top: 0; right: 0; border-left: none; border-bottom: none; border-radius: 0 8px 0 0; }
           .scanner-corner.bl { bottom: 0; left: 0; border-right: none; border-top: none; border-radius: 0 0 0 8px; }
           .scanner-corner.br { bottom: 0; right: 0; border-left: none; border-top: none; border-radius: 0 0 8px 0; }
-          
+
           @keyframes cornerPulse {
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.7; transform: scale(1.05); }
           }
-          
+
           .scanning .scanner-corner {
             animation: cornerPulse 1.5s ease-in-out infinite;
             border-color: var(--success-400);
             box-shadow: 0 0 15px rgba(34, 197, 94, 0.5);
           }
-          
+
           .scan-line {
             position: absolute;
             left: 15%;
@@ -218,42 +219,58 @@ export default function ScanAbsen() {
             z-index: 3;
             animation: scanMove 2s ease-in-out infinite;
           }
-          
+
           @keyframes scanMove {
             0%, 100% { top: 15%; }
             50% { top: 83%; }
           }
-          
+
           .scanner-content {
             position: relative;
             z-index: 1;
             text-align: center;
             padding: var(--space-6);
           }
-          
+
           #qr-reader {
             width: 100% !important;
+            height: 100% !important;
+            min-height: 300px !important;
             border: none !important;
             background: transparent !important;
+            position: relative !important;
+            z-index: 10 !important;
           }
-          
+
           #qr-reader video {
+            width: 100% !important;
+            height: 100% !important;
+            min-height: 300px !important;
             border-radius: var(--radius-xl) !important;
             object-fit: cover !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            z-index: 5 !important;
           }
-          
+
           #qr-reader__scan_region {
             background: transparent !important;
+            min-height: 250px !important;
           }
-          
+
           #qr-reader__scan_region img {
             display: none !important;
           }
-          
+
           #qr-reader__dashboard {
             display: none !important;
           }
-          
+
+          #qr-reader__header_message {
+            display: none !important;
+          }
+
           .scan-btn {
             width: 100%;
             padding: var(--space-5) var(--space-6);
@@ -268,28 +285,28 @@ export default function ScanAbsen() {
             gap: var(--space-3);
             transition: all 0.3s ease;
           }
-          
+
           .scan-btn-primary {
             background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
             color: white;
             box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
           }
-          
+
           .scan-btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 30px rgba(59, 130, 246, 0.5);
           }
-          
+
           .scan-btn-primary:active {
             transform: translateY(0);
           }
-          
+
           .scan-btn-danger {
             background: linear-gradient(135deg, var(--danger-500), var(--danger-600));
             color: white;
             box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
           }
-          
+
           .success-card {
             background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05));
             border: 1px solid rgba(34, 197, 94, 0.3);
@@ -298,13 +315,13 @@ export default function ScanAbsen() {
             margin-top: var(--space-4);
             animation: successPop 0.4s ease-out;
           }
-          
+
           @keyframes successPop {
             0% { opacity: 0; transform: scale(0.9); }
             50% { transform: scale(1.02); }
             100% { opacity: 1; transform: scale(1); }
           }
-          
+
           .error-card {
             background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05));
             border: 1px solid rgba(239, 68, 68, 0.3);
@@ -315,7 +332,7 @@ export default function ScanAbsen() {
             align-items: center;
             gap: var(--space-3);
           }
-          
+
           .history-item {
             display: flex;
             align-items: center;
@@ -326,12 +343,12 @@ export default function ScanAbsen() {
             border-radius: var(--radius-xl);
             transition: all 0.2s ease;
           }
-          
+
           .history-item:hover {
             border-color: var(--primary-500);
             background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), transparent);
           }
-          
+
           .avatar-gradient {
             width: 48px;
             height: 48px;
@@ -345,7 +362,7 @@ export default function ScanAbsen() {
             font-size: var(--text-lg);
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
           }
-          
+
           .loading-spinner {
             width: 48px;
             height: 48px;
@@ -354,11 +371,11 @@ export default function ScanAbsen() {
             border-radius: 50%;
             animation: spin 1s linear infinite;
           }
-          
+
           @keyframes spin {
             to { transform: rotate(360deg); }
           }
-          
+
           .premium-card {
             background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary));
             border: 1px solid var(--border-color);
@@ -366,17 +383,17 @@ export default function ScanAbsen() {
             padding: var(--space-6);
             backdrop-filter: blur(20px);
           }
-          
+
           @media (max-width: 768px) {
             .premium-card {
               padding: var(--space-4);
               border-radius: var(--radius-xl);
             }
-            
+
             .scanner-frame {
               border-radius: var(--radius-xl);
             }
-            
+
             .page-header {
               text-align: center;
             }
@@ -472,9 +489,11 @@ export default function ScanAbsen() {
               style={{
                 width: "100%",
                 height: "100%",
+                minHeight: "300px",
                 position: "absolute",
                 top: 0,
                 left: 0,
+                zIndex: 20,
                 display: isScanning ? "block" : "none",
               }}
             />
