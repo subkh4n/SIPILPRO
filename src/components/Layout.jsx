@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "../context/ToastContext";
 import {
   LayoutDashboard,
@@ -153,6 +153,7 @@ function MenuGroup({ group, isOpen, onToggle, location }) {
 
 export default function Layout({ children }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const toast = useToast();
   const [openMenus, setOpenMenus] = useState(["operasional"]); // Default open
 
@@ -333,7 +334,11 @@ export default function Layout({ children }) {
 
       {/* Mobile FAB - Quick Actions */}
       <div className="fab-container">
-        <button className="fab" title="Scan QR / Nota">
+        <button
+          className="fab"
+          title="Scan QR / Nota"
+          onClick={() => navigate("/operasional/scan-absen")}
+        >
           <ScanLine size={24} />
         </button>
       </div>
