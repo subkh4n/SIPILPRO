@@ -65,12 +65,22 @@ export default function ScanAbsen() {
       await html5QrCodeRef.current.start(
         { facingMode: "environment" },
         {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1,
+          fps: 15,
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            // Use 70% of the smaller dimension for qrbox
+            const minDimension = Math.min(viewfinderWidth, viewfinderHeight);
+            const qrboxSize = Math.floor(minDimension * 0.7);
+            return { width: qrboxSize, height: qrboxSize };
+          },
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
+          },
+          rememberLastUsedCamera: true,
+          showTorchButtonIfSupported: false,
         },
         (decodedText) => {
           // Success callback
+          console.log("QR Code detected:", decodedText);
           handleScanSuccess(decodedText);
         },
         () => {
@@ -182,16 +192,16 @@ export default function ScanAbsen() {
 
           .scanner-corners {
             position: absolute;
-            inset: 15%;
-            z-index: 2;
+            inset: 10%;
+            z-index: 30;
             pointer-events: none;
           }
 
           .scanner-corner {
             position: absolute;
-            width: 30px;
-            height: 30px;
-            border: 3px solid var(--primary-400);
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--primary-400);
           }
 
           .scanner-corner.tl { top: 0; left: 0; border-right: none; border-bottom: none; border-radius: 8px 0 0 0; }
@@ -212,17 +222,18 @@ export default function ScanAbsen() {
 
           .scan-line {
             position: absolute;
-            left: 15%;
-            right: 15%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--primary-400), transparent);
-            z-index: 3;
+            left: 10%;
+            right: 10%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #22c55e, #22c55e, transparent);
+            z-index: 30;
             animation: scanMove 2s ease-in-out infinite;
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.8), 0 0 20px rgba(34, 197, 94, 0.5);
           }
 
           @keyframes scanMove {
-            0%, 100% { top: 15%; }
-            50% { top: 83%; }
+            0%, 100% { top: 10%; }
+            50% { top: 88%; }
           }
 
           .scanner-content {
