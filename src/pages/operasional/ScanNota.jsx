@@ -31,17 +31,41 @@ const formatCurrency = (value) => {
   }).format(value || 0);
 };
 
-// Parse OCR text to extract items
+// Parse OCR text to extract receipt data
 const parseOcrText = (text) => {
   const lines = text.split("\n").filter((line) => line.trim());
   const items = [];
   let invoiceNo = "";
   let detectedDate = "";
+  let detectedVendor = "";
+  let detectedTotal = 0;
 
-  // Patterns for detecting numbers
-  const datePattern = /(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})/;
+  // Patterns for detecting data
+  const datePattern =
+    /(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})|(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember)\s+\d{2,4})/i;
   const invoicePattern =
-    /(?:inv|invoice|no\.?|faktur|nota)[\s:]*([A-Z0-9\-/]+)/i;
+    /(?:inv|invoice|no\.?|faktur|nota|receipt|kwitansi|bon)[^\d]*([A-Z0-9\-/]+)/i;
+  const vendorPatterns = [
+    /(?:TB\.|Toko\s+Bangunan|UD\.|CV\.|PT\.|TOKO)[.\s]*([A-Za-z\s]+)/i,
+    /^([A-Za-z\s]{3,30})$/m, // Lines that are just text (potential vendor names)
+  ];
+  const totalPattern = /(?:total|grand\s*total|jumlah|sum)[^\d]*([0-9.,]+)/i;
+
+  // Try to find vendor name (usually at the top of receipt)
+  for (let i = 0; i < Math.min(5, lines.length); i++) {
+    const line = lines[i].trim();
+    for (const pattern of vendorPatterns) {
+      const match = line.match(pattern);
+      if (match && !detectedVendor) {
+        // Skip if it looks like a header/footer keyword
+        if (!/^(total|subtotal|tax|invoice|nota|tanggal|date)/i.test(line)) {
+          detectedVendor = match[1] ? match[1].trim() : line.trim();
+          break;
+        }
+      }
+    }
+    if (detectedVendor) break;
+  }
 
   // Try to find invoice number
   const invoiceMatch = text.match(invoicePattern);
@@ -52,20 +76,36 @@ const parseOcrText = (text) => {
   // Try to find date
   const dateMatch = text.match(datePattern);
   if (dateMatch) {
-    detectedDate = dateMatch[1];
+    detectedDate = dateMatch[1] || dateMatch[2];
+  }
+
+  // Try to find total
+  const totalMatch = text.match(totalPattern);
+  if (totalMatch) {
+    detectedTotal =
+      parseFloat(totalMatch[1].replace(/\./g, "").replace(",", ".")) || 0;
   }
 
   // Parse each line for potential items
   lines.forEach((line, index) => {
     // Skip very short lines or lines that look like headers
     if (line.length < 3) return;
-    if (/^(total|subtotal|ppn|tax|diskon|discount)/i.test(line.trim())) return;
+    if (
+      /^(total|subtotal|ppn|tax|diskon|discount|grand|jumlah|kembalian|bayar|tunai|cash)/i.test(
+        line.trim()
+      )
+    )
+      return;
+    // Skip lines that look like vendor/header
+    if (index < 2 && detectedVendor && line.includes(detectedVendor)) return;
 
     // Look for lines with numbers (potential items with prices)
     const numbers = line.match(/[\d.,]+/g);
     if (numbers && numbers.length >= 1) {
       // Try to extract item name (text before numbers)
-      const namePart = line.replace(/[\d.,]+/g, "").trim();
+      let namePart = line.replace(/[\d.,]+/g, "").trim();
+      // Clean up common OCR artifacts
+      namePart = namePart.replace(/[xX×*:]|\s{2,}/g, " ").trim();
 
       // Get the largest number as potential price/total
       const numericValues = numbers
@@ -75,6 +115,9 @@ const parseOcrText = (text) => {
       if (namePart.length > 2 && numericValues.length > 0) {
         const maxValue = Math.max(...numericValues);
 
+        // Skip if this looks like a qty-only line
+        if (maxValue < 100 && namePart.length < 3) return;
+
         // Determine if it's a total or price based on value
         let qty = 1;
         let price = maxValue;
@@ -82,10 +125,19 @@ const parseOcrText = (text) => {
 
         // If there are multiple numbers, try to parse qty and price
         if (numericValues.length >= 2) {
-          const smallerValues = numericValues.filter((v) => v < 1000);
-          if (smallerValues.length > 0) {
-            qty = smallerValues[0];
+          // Find potential quantity (usually smaller number, < 1000)
+          const potentialQty = numericValues.find((v) => v < 1000 && v > 0);
+          const potentialTotal = numericValues.find((v) => v >= 1000);
+
+          if (potentialQty && potentialTotal) {
+            qty = potentialQty;
+            total = potentialTotal;
             price = Math.round(total / qty);
+          } else if (numericValues.length >= 3) {
+            // Format: qty x price = total
+            qty = numericValues[0];
+            price = numericValues[1];
+            total = numericValues[2];
           }
         }
 
@@ -101,7 +153,13 @@ const parseOcrText = (text) => {
     }
   });
 
-  return { items, invoiceNo, date: detectedDate };
+  return {
+    items,
+    invoiceNo,
+    date: detectedDate,
+    vendor: detectedVendor,
+    total: detectedTotal,
+  };
 };
 
 export default function ScanNota() {
@@ -133,7 +191,9 @@ export default function ScanNota() {
     setOcrText("");
 
     try {
-      const result = await Tesseract.recognize(imageData, "ind+eng", {
+      // Use 'eng' language only for faster processing
+      // Indonesian text is mostly ASCII-compatible anyway
+      const result = await Tesseract.recognize(imageData, "eng", {
         logger: (m) => {
           if (m.status === "recognizing text") {
             setOcrProgress(Math.round(m.progress * 100));
@@ -179,6 +239,19 @@ export default function ScanNota() {
           }
         } catch {
           // Keep default date
+        }
+      }
+
+      // Try to auto-match vendor from detected vendor name
+      if (parsed.vendor) {
+        const matchedVendor = vendors.find(
+          (v) =>
+            v.name.toLowerCase().includes(parsed.vendor.toLowerCase()) ||
+            parsed.vendor.toLowerCase().includes(v.name.toLowerCase())
+        );
+        if (matchedVendor) {
+          setFormData((prev) => ({ ...prev, vendorId: matchedVendor.id }));
+          toast.info(`Vendor terdeteksi: ${matchedVendor.name}`);
         }
       }
     } catch (error) {
