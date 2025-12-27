@@ -14,6 +14,51 @@ const isAPIConfigured = () => {
   );
 };
 
+// Format currency to IDR (100000 → Rp 100.000)
+const formatCurrencyIDR = (value) => {
+  const num = parseFloat(value) || 0;
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(num);
+};
+
+// Parse time from GSheet format (1899-12-30T06:52:48.000Z → 06:52)
+const parseTimeFromGSheet = (timeValue) => {
+  if (!timeValue) return "08:00";
+
+  // If already in HH:MM format
+  if (typeof timeValue === "string" && /^\d{2}:\d{2}$/.test(timeValue)) {
+    return timeValue;
+  }
+
+  // If it's a date string from GSheet (1899-12-30T...)
+  if (typeof timeValue === "string" && timeValue.includes("T")) {
+    try {
+      const date = new Date(timeValue);
+      const hours = date.getUTCHours().toString().padStart(2, "0");
+      const minutes = date.getUTCMinutes().toString().padStart(2, "0");
+      return `${hours}:${minutes}`;
+    } catch {
+      return "08:00";
+    }
+  }
+
+  // If it's a number (decimal hours from GSheet)
+  if (typeof timeValue === "number") {
+    const totalMinutes = Math.round(timeValue * 24 * 60);
+    const hours = Math.floor(totalMinutes / 60) % 24;
+    const minutes = totalMinutes % 60;
+    return `${hours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}`;
+  }
+
+  return String(timeValue) || "08:00";
+};
+
 export function DataProvider({ children }) {
   // Loading & Error states
   const [loading, setLoading] = useState(true);
@@ -55,10 +100,107 @@ export function DataProvider({ children }) {
       setPurchases(data.belanja || []);
       setHolidays(data.kalender || []);
 
-      // Master Data
-      if (data.masterJabatan) setPositions(data.masterJabatan);
-      if (data.masterGolongan) setSalaryGrades(data.masterGolongan);
-      if (data.masterJamMasuk) setWorkSchedules(data.masterJamMasuk);
+      // Master Data - Map GSheet fields to Frontend fields
+      if (data.masterJabatan) {
+        const mappedPositions = data.masterJabatan.map((item) => ({
+          id: item.id,
+          name: item.nama || item.name || "",
+          code: item.id?.toUpperCase() || "",
+          description: item.deskripsi || item.description || "",
+          level: 1,
+          isActive: item.status === "active",
+        }));
+        setPositions(mappedPositions);
+      }
+
+      if (data.masterGolongan) {
+        const mappedGrades = data.masterGolongan.map((item) => ({
+          id: item.id,
+          name: item.golongan || item.name || "",
+          code: item.id?.toUpperCase() || "GOL",
+          description: `Gaji Pokok: ${formatCurrencyIDR(
+            item.gajiPokok
+          )}, Tunjangan: ${formatCurrencyIDR(item.tunjangan)}`,
+          gajiPokok: parseFloat(item.gajiPokok) || 0,
+          tunjangan: parseFloat(item.tunjangan) || 0,
+          salaryRates: {},
+          isActive: item.status === "active",
+        }));
+        setSalaryGrades(mappedGrades);
+      }
+
+      if (data.masterJamMasuk) {
+        const mappedSchedules = data.masterJamMasuk.map((item, index) => {
+          const startTime = parseTimeFromGSheet(item.jamMasuk);
+          const endTime = parseTimeFromGSheet(item.jamKeluar);
+          const name = item.nama || item.name || `Jadwal ${index + 1}`;
+
+          // Determine type and details from name
+          const nameLower = name.toLowerCase();
+          const isShift =
+            nameLower.includes("shift") ||
+            nameLower.includes("pagi") ||
+            nameLower.includes("siang") ||
+            nameLower.includes("malam");
+          const type = isShift ? "shift" : "reguler";
+
+          // Calculate work hours from start and end time
+          const [startH] = startTime.split(":").map(Number);
+          const [endH] = endTime.split(":").map(Number);
+          let hoursPerDay = endH - startH;
+          if (hoursPerDay < 0) hoursPerDay += 24; // Handle overnight shift
+          hoursPerDay = Math.max(hoursPerDay, 8); // Minimum 8 hours
+
+          // Determine work days from name
+          let workDays = 5;
+          if (nameLower.includes("6") || nameLower.includes("enam"))
+            workDays = 6;
+          if (nameLower.includes("7") || nameLower.includes("tujuh"))
+            workDays = 7;
+
+          // Generate code from name
+          let code = item.id?.replace("jam-", "").toUpperCase() || "JAM";
+          if (nameLower.includes("reguler") && nameLower.includes("5"))
+            code = "REG5";
+          if (nameLower.includes("reguler") && nameLower.includes("6"))
+            code = "REG6";
+          if (nameLower.includes("pagi")) code = "PAGI";
+          if (nameLower.includes("siang")) code = "SIANG";
+          if (nameLower.includes("malam")) code = "MALAM";
+
+          // Generate description
+          const dayNames =
+            workDays === 5
+              ? "Senin-Jumat"
+              : workDays === 6
+              ? "Senin-Sabtu"
+              : "Setiap hari";
+          const description = isShift
+            ? `${name} jam ${startTime}-${endTime}`
+            : `${workDays} hari kerja, ${hoursPerDay} jam/hari (${dayNames})`;
+
+          return {
+            id: item.id,
+            name: name,
+            code: code,
+            type: type,
+            description: description,
+            workDays: workDays,
+            hoursPerDay: hoursPerDay,
+            weeklyHours: workDays * hoursPerDay,
+            startTime: startTime,
+            endTime: endTime,
+            breakDuration: 60,
+            toleransiMenit: parseInt(item.toleransiMenit) || 15,
+            overtimeMultiplier:
+              isShift && nameLower.includes("malam") ? 2.0 : 1.5,
+            holidayMultiplier:
+              isShift && nameLower.includes("malam") ? 2.5 : 2.0,
+            isActive: item.status === "active",
+          };
+        });
+        setWorkSchedules(mappedSchedules);
+      }
 
       // Calculate cash balance from paid purchases
       const paidTotal = (data.belanja || [])
@@ -524,21 +666,51 @@ export function DataProvider({ children }) {
   // ============================================
 
   const addSalaryGrade = async (gradeData) => {
-    const newGrade = { ...gradeData, id: `grade-${Date.now()}` };
-    setSalaryGrades((prev) => [newGrade, ...prev]);
-    return newGrade;
+    const newGrade = { ...gradeData, id: `gol-${Date.now()}` };
+    try {
+      if (isAPIConfigured()) {
+        const result = await api.addMasterGolongan(newGrade);
+        newGrade.id = result.id || newGrade.id;
+      }
+      setSalaryGrades((prev) => [newGrade, ...prev]);
+      return newGrade;
+    } catch (err) {
+      console.error("Failed to add salary grade:", err);
+      setSalaryGrades((prev) => [newGrade, ...prev]);
+      return newGrade;
+    }
   };
 
   const updateSalaryGrade = async (gradeId, updates) => {
-    setSalaryGrades((prev) =>
-      prev.map((g) => (g.id === gradeId ? { ...g, ...updates } : g))
-    );
-    return true;
+    try {
+      if (isAPIConfigured()) {
+        await api.updateMasterGolongan(gradeId, updates);
+      }
+      setSalaryGrades((prev) =>
+        prev.map((g) => (g.id === gradeId ? { ...g, ...updates } : g))
+      );
+      return true;
+    } catch (err) {
+      console.error("Failed to update salary grade:", err);
+      setSalaryGrades((prev) =>
+        prev.map((g) => (g.id === gradeId ? { ...g, ...updates } : g))
+      );
+      return true;
+    }
   };
 
   const deleteSalaryGrade = async (gradeId) => {
-    setSalaryGrades((prev) => prev.filter((g) => g.id !== gradeId));
-    return true;
+    try {
+      if (isAPIConfigured()) {
+        await api.deleteMasterGolongan(gradeId);
+      }
+      setSalaryGrades((prev) => prev.filter((g) => g.id !== gradeId));
+      return true;
+    } catch (err) {
+      console.error("Failed to delete salary grade:", err);
+      setSalaryGrades((prev) => prev.filter((g) => g.id !== gradeId));
+      return true;
+    }
   };
 
   const getSalaryGrade = (id) => salaryGrades.find((g) => g.id === id);
@@ -548,21 +720,51 @@ export function DataProvider({ children }) {
   // ============================================
 
   const addWorkSchedule = async (scheduleData) => {
-    const newSchedule = { ...scheduleData, id: `schedule-${Date.now()}` };
-    setWorkSchedules((prev) => [newSchedule, ...prev]);
-    return newSchedule;
+    const newSchedule = { ...scheduleData, id: `jam-${Date.now()}` };
+    try {
+      if (isAPIConfigured()) {
+        const result = await api.addMasterJamMasuk(newSchedule);
+        newSchedule.id = result.id || newSchedule.id;
+      }
+      setWorkSchedules((prev) => [newSchedule, ...prev]);
+      return newSchedule;
+    } catch (err) {
+      console.error("Failed to add work schedule:", err);
+      setWorkSchedules((prev) => [newSchedule, ...prev]);
+      return newSchedule;
+    }
   };
 
   const updateWorkSchedule = async (scheduleId, updates) => {
-    setWorkSchedules((prev) =>
-      prev.map((s) => (s.id === scheduleId ? { ...s, ...updates } : s))
-    );
-    return true;
+    try {
+      if (isAPIConfigured()) {
+        await api.updateMasterJamMasuk(scheduleId, updates);
+      }
+      setWorkSchedules((prev) =>
+        prev.map((s) => (s.id === scheduleId ? { ...s, ...updates } : s))
+      );
+      return true;
+    } catch (err) {
+      console.error("Failed to update work schedule:", err);
+      setWorkSchedules((prev) =>
+        prev.map((s) => (s.id === scheduleId ? { ...s, ...updates } : s))
+      );
+      return true;
+    }
   };
 
   const deleteWorkSchedule = async (scheduleId) => {
-    setWorkSchedules((prev) => prev.filter((s) => s.id !== scheduleId));
-    return true;
+    try {
+      if (isAPIConfigured()) {
+        await api.deleteMasterJamMasuk(scheduleId);
+      }
+      setWorkSchedules((prev) => prev.filter((s) => s.id !== scheduleId));
+      return true;
+    } catch (err) {
+      console.error("Failed to delete work schedule:", err);
+      setWorkSchedules((prev) => prev.filter((s) => s.id !== scheduleId));
+      return true;
+    }
   };
 
   const getWorkSchedule = (id) => workSchedules.find((s) => s.id === id);
@@ -637,23 +839,57 @@ export function DataProvider({ children }) {
     // Positions CRUD
     positions,
     addPosition: async (posData) => {
-      const newPos = { ...posData, id: `pos-${Date.now()}` };
-      setPositions((prev) =>
-        [...prev, newPos].sort((a, b) => a.level - b.level)
-      );
-      return newPos;
+      const newPos = { ...posData, id: `jbt-${Date.now()}` };
+      try {
+        if (isAPIConfigured()) {
+          const result = await api.addMasterJabatan(newPos);
+          newPos.id = result.id || newPos.id;
+        }
+        setPositions((prev) =>
+          [...prev, newPos].sort((a, b) => (a.level || 0) - (b.level || 0))
+        );
+        return newPos;
+      } catch (err) {
+        console.error("Failed to add position:", err);
+        setPositions((prev) =>
+          [...prev, newPos].sort((a, b) => (a.level || 0) - (b.level || 0))
+        );
+        return newPos;
+      }
     },
     updatePosition: async (posId, updates) => {
-      setPositions((prev) =>
-        prev
-          .map((p) => (p.id === posId ? { ...p, ...updates } : p))
-          .sort((a, b) => a.level - b.level)
-      );
-      return true;
+      try {
+        if (isAPIConfigured()) {
+          await api.updateMasterJabatan(posId, updates);
+        }
+        setPositions((prev) =>
+          prev
+            .map((p) => (p.id === posId ? { ...p, ...updates } : p))
+            .sort((a, b) => (a.level || 0) - (b.level || 0))
+        );
+        return true;
+      } catch (err) {
+        console.error("Failed to update position:", err);
+        setPositions((prev) =>
+          prev
+            .map((p) => (p.id === posId ? { ...p, ...updates } : p))
+            .sort((a, b) => (a.level || 0) - (b.level || 0))
+        );
+        return true;
+      }
     },
     deletePosition: async (posId) => {
-      setPositions((prev) => prev.filter((p) => p.id !== posId));
-      return true;
+      try {
+        if (isAPIConfigured()) {
+          await api.deleteMasterJabatan(posId);
+        }
+        setPositions((prev) => prev.filter((p) => p.id !== posId));
+        return true;
+      } catch (err) {
+        console.error("Failed to delete position:", err);
+        setPositions((prev) => prev.filter((p) => p.id !== posId));
+        return true;
+      }
     },
     getPosition: (id) => positions.find((p) => p.id === id),
 

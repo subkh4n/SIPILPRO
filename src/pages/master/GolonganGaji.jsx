@@ -549,44 +549,46 @@ export default function GolonganGaji() {
                             </td>
                             <td style={{ padding: "var(--space-2)" }}>
                               <input
-                                type="number"
+                                type="text"
                                 className="form-input"
                                 style={{ textAlign: "right" }}
-                                min="0"
-                                step="10000"
-                                value={
+                                value={(
                                   formData.salaryRates[pos.id]?.dailyRate || 0
-                                }
-                                onChange={(e) =>
+                                ).toLocaleString("id-ID")}
+                                onChange={(e) => {
+                                  const numValue =
+                                    parseInt(
+                                      e.target.value.replace(/\./g, "")
+                                    ) || 0;
                                   handleRateChange(
                                     pos.id,
                                     "dailyRate",
-                                    e.target.value
-                                  )
-                                }
+                                    numValue
+                                  );
+                                  // Auto-calculate hourly rate (daily / 8 hours)
+                                  handleRateChange(
+                                    pos.id,
+                                    "hourlyRate",
+                                    Math.round(numValue / 8)
+                                  );
+                                }}
                               />
                             </td>
                             <td style={{ padding: "var(--space-2)" }}>
                               <input
-                                type="number"
+                                type="text"
                                 className="form-input"
                                 style={{
                                   textAlign: "right",
-                                  background: "var(--bg-input)",
+                                  background: "var(--bg-tertiary)",
                                   color: "var(--text-muted)",
                                 }}
-                                min="0"
-                                step="1000"
-                                value={
-                                  formData.salaryRates[pos.id]?.hourlyRate || 0
-                                }
-                                onChange={(e) =>
-                                  handleRateChange(
-                                    pos.id,
-                                    "hourlyRate",
-                                    e.target.value
-                                  )
-                                }
+                                value={Math.round(
+                                  (formData.salaryRates[pos.id]?.dailyRate ||
+                                    0) / 8
+                                ).toLocaleString("id-ID")}
+                                readOnly
+                                disabled
                               />
                             </td>
                           </tr>
@@ -702,7 +704,7 @@ export default function GolonganGaji() {
                       fontSize: "var(--text-lg)",
                     }}
                   >
-                    {grade.code.split("-")[1] || gradeIndex + 1}
+                    {grade.code?.split("-")[1] || gradeIndex + 1}
                   </div>
                   <div>
                     <div

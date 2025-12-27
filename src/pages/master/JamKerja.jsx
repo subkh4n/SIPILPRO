@@ -695,7 +695,7 @@ export default function JamKerja() {
                           fontSize: "10px",
                         }}
                       >
-                        {schedule.type.toUpperCase()}
+                        {(schedule.type || "reguler").toUpperCase()}
                       </span>
                       <span className="font-mono">{schedule.code}</span>
                     </div>
