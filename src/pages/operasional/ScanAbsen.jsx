@@ -120,22 +120,30 @@ export default function ScanAbsen() {
     setIsInitializing(true);
     setLastScan(null);
 
+    // Set scanning true first so container becomes visible
+    setIsScanning(true);
+
+    // Wait for DOM to update with visible container
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     try {
+      // Clear any existing scanner
+      if (html5QrCodeRef.current) {
+        try {
+          await html5QrCodeRef.current.stop();
+        } catch (e) {
+          // Ignore stop errors
+        }
+      }
+
       html5QrCodeRef.current = new Html5Qrcode(scannerContainerId);
 
       await html5QrCodeRef.current.start(
         { facingMode: "environment" },
         {
-          fps: 15,
-          qrbox: (viewfinderWidth, viewfinderHeight) => {
-            const minDimension = Math.min(viewfinderWidth, viewfinderHeight);
-            const qrboxSize = Math.floor(minDimension * 0.7);
-            return { width: qrboxSize, height: qrboxSize };
-          },
-          experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true,
-          },
-          rememberLastUsedCamera: true,
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1,
         },
         (decodedText) => {
           console.log("QR Code detected:", decodedText);
@@ -146,14 +154,17 @@ export default function ScanAbsen() {
         }
       );
 
-      setIsScanning(true);
       setIsInitializing(false);
     } catch (err) {
       setIsInitializing(false);
+      setIsScanning(false);
       setError(
-        err.message.includes("Permission")
+        err.message?.includes("Permission")
           ? "Izin kamera ditolak. Harap izinkan akses kamera."
-          : "Gagal mengakses kamera. Pastikan perangkat memiliki kamera."
+          : err.message?.includes("NotFound") ||
+            err.message?.includes("no camera")
+          ? "Kamera tidak ditemukan. Pastikan perangkat memiliki kamera."
+          : `Gagal mengakses kamera: ${err.message || "Unknown error"}`
       );
       console.error("Camera error:", err);
     }
@@ -438,29 +449,17 @@ export default function ScanAbsen() {
 
           #qr-reader {
             width: 100% !important;
-            height: 100% !important;
-            min-height: 300px !important;
             border: none !important;
             background: transparent !important;
-            position: relative !important;
-            z-index: 10 !important;
           }
 
           #qr-reader video {
-            width: 100% !important;
-            height: 100% !important;
-            min-height: 300px !important;
             border-radius: var(--radius-xl) !important;
             object-fit: cover !important;
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            z-index: 5 !important;
           }
 
           #qr-reader__scan_region {
             background: transparent !important;
-            min-height: 250px !important;
           }
 
           #qr-reader__scan_region img {
@@ -470,11 +469,7 @@ export default function ScanAbsen() {
           #qr-reader__dashboard {
             display: none !important;
           }
-
-          #qr-reader__header_message {
-            display: none !important;
-          }
-
+          
           .scan-btn {
             width: 100%;
             padding: var(--space-5) var(--space-6);
@@ -676,7 +671,10 @@ export default function ScanAbsen() {
           </div>
 
           {/* Project Selector */}
-          <div className="form-group" style={{ marginBottom: "var(--space-4)" }}>
+          <div
+            className="form-group"
+            style={{ marginBottom: "var(--space-4)" }}
+          >
             <label className="form-label">
               <Building2
                 size={16}
@@ -715,7 +713,7 @@ export default function ScanAbsen() {
             {/* Scan Line Animation */}
             {isScanning && <div className="scan-line"></div>}
 
-            {/* Scanner Container or Placeholder */}
+            {/* Scanner Container - Always rendered but visibility controlled */}
             <div
               id={scannerContainerId}
               style={{
@@ -725,7 +723,6 @@ export default function ScanAbsen() {
                 position: "absolute",
                 top: 0,
                 left: 0,
-                zIndex: 20,
                 display: isScanning ? "block" : "none",
               }}
             />

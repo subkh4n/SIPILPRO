@@ -1,7 +1,6 @@
 // API Configuration
-// Replace this with your deployed Google Apps Script Web App URL
-export const API_URL =
-  "https://script.google.com/macros/s/AKfycbzT2NdhcW3_YBx5INf8pmaZ-7Voi1YD0DTIVIrYPikfXkPkw3bZSlZrY1f0gK1A7SBj/exec";
+// Set VITE_API_URL in .env file or Vercel Environment Variables
+export const API_URL = import.meta.env.VITE_API_URL || "";
 
 // Sheet names mapping
 const SHEETS = {

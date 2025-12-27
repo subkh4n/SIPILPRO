@@ -3,9 +3,8 @@
  * Menghubungkan React App dengan Google Apps Script Backend
  */
 
-// GANTI DENGAN URL DEPLOY ANDA!
-const API_URL =
-  "https://script.google.com/macros/s/AKfycbxATy1aYPNnmfh6GQ2_fJjHjpjB-GYf7xecxZwnu1SlZyqnAWFy0POzlp4FAckqzW5q/exec";
+// Set VITE_SHEETS_API_URL in .env file or Vercel Environment Variables
+const API_URL = import.meta.env.VITE_SHEETS_API_URL || "";
 
 /**
  * Fetch data dari Google Sheets
@@ -148,5 +147,3 @@ export const sheetsApi = {
 };
 
 export default sheetsApi;
-
-
