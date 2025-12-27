@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useData } from "../../context/DataContext";
+import { useData } from "../../context";
 import { useToast } from "../../context/ToastContext";
 import PegawaiForm from "../../components/forms/PegawaiForm";
 import { Loader } from "lucide-react";
@@ -81,3 +81,4 @@ export default function EditPegawai() {
     />
   );
 }
+

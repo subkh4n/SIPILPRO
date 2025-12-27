@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useData } from "../../context/DataContext";
+import { useData } from "../../context";
 import { useToast } from "../../context/ToastContext";
 import PegawaiForm from "../../components/forms/PegawaiForm";
 
@@ -29,3 +29,4 @@ export default function TambahPegawai() {
     <PegawaiForm mode="add" onSubmit={handleSubmit} isLoading={isLoading} />
   );
 }
+

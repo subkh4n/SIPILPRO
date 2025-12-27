@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useData } from "../../context/DataContext";
+import { useData } from "../../context";
 import { useToast } from "../../context/ToastContext";
 import { formatCurrency } from "../../utils/helpers";
 import { QRCodeSVG } from "qrcode.react";
@@ -1660,3 +1660,4 @@ export default function Pegawai() {
     </div>
   );
 }
+

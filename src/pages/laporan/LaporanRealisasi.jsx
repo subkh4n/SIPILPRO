@@ -1,4 +1,4 @@
-import { useData } from "../../context/DataContext";
+import { useData } from "../../context";
 import { formatCurrency } from "../../utils/helpers";
 import {
   BarChart3,
@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 export default function LaporanRealisasi() {
-  const { projects, getProjectCosts, purchases, attendance } = useData();
+  const { projects, getProjectCosts } = useData();
 
   // Calculate total costs per project with RAP comparison
   const projectRealisasi = projects.map((project) => {
@@ -379,3 +379,4 @@ export default function LaporanRealisasi() {
     </div>
   );
 }
+

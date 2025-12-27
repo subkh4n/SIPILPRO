@@ -1,4 +1,4 @@
-import { useData } from "../context/DataContext";
+import { useData } from "../context";
 import { formatCurrency, getDueDateStatus } from "../utils/helpers";
 import {
   TrendingUp,
@@ -671,3 +671,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

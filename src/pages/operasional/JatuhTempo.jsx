@@ -1,4 +1,4 @@
-import { useData } from "../../context/DataContext";
+import { useData } from "../../context";
 import { useToast } from "../../context/ToastContext";
 import { formatCurrency } from "../../utils/helpers";
 import { format, differenceInDays, parseISO } from "date-fns";
@@ -482,3 +482,4 @@ export default function JatuhTempo() {
     </div>
   );
 }
+

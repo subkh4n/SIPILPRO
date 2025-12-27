@@ -28,6 +28,9 @@ import {
   ScanLine,
   Camera,
   User,
+  Award,
+  Clock,
+  UserCog,
   LogOut,
 } from "lucide-react";
 
@@ -49,6 +52,9 @@ const menuStructure = [
       { name: "Data Pegawai", href: "/master/pegawai", icon: Users },
       { name: "Data Proyek", href: "/master/proyek", icon: Building2 },
       { name: "Data Vendor", href: "/master/vendor", icon: Store },
+      { name: "Master Jabatan", href: "/master/jabatan", icon: UserCog },
+      { name: "Golongan Gaji", href: "/master/golongan-gaji", icon: Award },
+      { name: "Jam Kerja", href: "/master/jam-kerja", icon: Clock },
       { name: "Kalender Libur", href: "/master/kalender", icon: CalendarClock },
     ],
   },

@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
-import { useData } from "../../context/DataContext";
-import { formatCurrency } from "../../utils/helpers";
+import { useData } from "../../context";
 import {
   format,
   startOfMonth,
@@ -29,18 +28,18 @@ export default function RekapAbsensi() {
   );
   const [selectedProject, setSelectedProject] = useState("all");
 
-  // Parse selected month
-  const monthDate = new Date(selectedMonth + "-01");
-  const monthStart = startOfMonth(monthDate);
-  const monthEnd = endOfMonth(monthDate);
+  // Calculate attendance stats per worker (all date logic inside useMemo for React Compiler)
+  const { attendanceData, totalWorkDays } = useMemo(() => {
+    // Parse selected month
+    const monthDate = new Date(selectedMonth + "-01");
+    const monthStart = startOfMonth(monthDate);
+    const monthEnd = endOfMonth(monthDate);
 
-  // Get all days in month
-  const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
-  const totalWorkDays = daysInMonth.filter((d) => !isWeekend(d)).length;
+    // Get all days in month
+    const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    const workDays = daysInMonth.filter((d) => !isWeekend(d)).length;
 
-  // Calculate attendance stats per worker
-  const attendanceData = useMemo(() => {
-    return workers.map((worker) => {
+    const data = workers.map((worker) => {
       // Filter attendance for this worker in selected month
       let workerAttendance = attendance.filter((a) => {
         const attDate = parseISO(a.date);
@@ -56,7 +55,7 @@ export default function RekapAbsensi() {
 
       // Calculate stats
       const presentDays = workerAttendance.length;
-      const absentDays = totalWorkDays - presentDays;
+      const absentDays = workDays - presentDays;
       const totalHours = workerAttendance.reduce(
         (sum, a) => sum + (a.totalHours || 0),
         0
@@ -66,7 +65,7 @@ export default function RekapAbsensi() {
         0
       );
       const attendanceRate =
-        totalWorkDays > 0 ? Math.round((presentDays / totalWorkDays) * 100) : 0;
+        workDays > 0 ? Math.round((presentDays / workDays) * 100) : 0;
 
       // Get attendance by date
       const attendanceByDate = {};
@@ -84,14 +83,12 @@ export default function RekapAbsensi() {
         attendanceByDate,
       };
     });
-  }, [
-    workers,
-    attendance,
-    monthStart,
-    monthEnd,
-    selectedProject,
-    totalWorkDays,
-  ]);
+
+    return { attendanceData: data, totalWorkDays: workDays };
+  }, [workers, attendance, selectedMonth, selectedProject]);
+
+  // For display purposes
+  const monthDate = new Date(selectedMonth + "-01");
 
   // Summary totals
   const totalPresent = attendanceData.reduce(
@@ -106,12 +103,6 @@ export default function RekapAbsensi() {
         )
       : 0;
   const totalHours = attendanceData.reduce((sum, w) => sum + w.totalHours, 0);
-
-  // Get project name
-  const getProjectName = (projectId) => {
-    const project = projects.find((p) => p.id === projectId);
-    return project?.name || "Unknown";
-  };
 
   return (
     <div className="animate-in">
@@ -422,3 +413,4 @@ export default function RekapAbsensi() {
     </div>
   );
 }
+

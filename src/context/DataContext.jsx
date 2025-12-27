@@ -1,11 +1,6 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-} from "react";
+import { useState, useEffect, useCallback } from "react";
 import * as api from "../services/api";
+import { DataContext } from "./DataContextInstance";
 
 // Fallback mock data (used when API is not configured)
 import {
@@ -16,8 +11,6 @@ import {
   initialPurchases as mockPurchases,
   initialCashBalance,
 } from "../data/mockData";
-
-const DataContext = createContext(null);
 
 // Check if API is configured
 const isAPIConfigured = () => {
@@ -34,6 +27,9 @@ export function DataProvider({ children }) {
   const [workers, setWorkers] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [holidays, setHolidays] = useState([]);
+  const [salaryGrades, setSalaryGrades] = useState([]);
+  const [workSchedules, setWorkSchedules] = useState([]);
+  const [positions, setPositions] = useState([]);
 
   // Transaction data
   const [attendance, setAttendance] = useState([]);
@@ -529,6 +525,54 @@ export function DataProvider({ children }) {
     }
   };
 
+  // ============================================
+  // CRUD FUNCTIONS FOR SALARY GRADES (GOLONGAN GAJI)
+  // ============================================
+
+  const addSalaryGrade = async (gradeData) => {
+    const newGrade = { ...gradeData, id: `grade-${Date.now()}` };
+    setSalaryGrades((prev) => [newGrade, ...prev]);
+    return newGrade;
+  };
+
+  const updateSalaryGrade = async (gradeId, updates) => {
+    setSalaryGrades((prev) =>
+      prev.map((g) => (g.id === gradeId ? { ...g, ...updates } : g))
+    );
+    return true;
+  };
+
+  const deleteSalaryGrade = async (gradeId) => {
+    setSalaryGrades((prev) => prev.filter((g) => g.id !== gradeId));
+    return true;
+  };
+
+  const getSalaryGrade = (id) => salaryGrades.find((g) => g.id === id);
+
+  // ============================================
+  // CRUD FUNCTIONS FOR WORK SCHEDULES (JAM KERJA)
+  // ============================================
+
+  const addWorkSchedule = async (scheduleData) => {
+    const newSchedule = { ...scheduleData, id: `schedule-${Date.now()}` };
+    setWorkSchedules((prev) => [newSchedule, ...prev]);
+    return newSchedule;
+  };
+
+  const updateWorkSchedule = async (scheduleId, updates) => {
+    setWorkSchedules((prev) =>
+      prev.map((s) => (s.id === scheduleId ? { ...s, ...updates } : s))
+    );
+    return true;
+  };
+
+  const deleteWorkSchedule = async (scheduleId) => {
+    setWorkSchedules((prev) => prev.filter((s) => s.id !== scheduleId));
+    return true;
+  };
+
+  const getWorkSchedule = (id) => workSchedules.find((s) => s.id === id);
+
   const value = {
     // States
     loading,
@@ -539,6 +583,8 @@ export function DataProvider({ children }) {
     workers,
     vendors,
     holidays,
+    salaryGrades,
+    workSchedules,
 
     // Transaction data
     attendance,
@@ -581,18 +627,45 @@ export function DataProvider({ children }) {
     getVendor: getVendorById,
     getTotalDebt,
     getProjectCosts,
+    getSalaryGrade,
+    getWorkSchedule,
+
+    // Salary Grade CRUD
+    addSalaryGrade,
+    updateSalaryGrade,
+    deleteSalaryGrade,
+
+    // Work Schedule CRUD
+    addWorkSchedule,
+    updateWorkSchedule,
+    deleteWorkSchedule,
+
+    // Positions CRUD
+    positions,
+    addPosition: async (posData) => {
+      const newPos = { ...posData, id: `pos-${Date.now()}` };
+      setPositions((prev) =>
+        [...prev, newPos].sort((a, b) => a.level - b.level)
+      );
+      return newPos;
+    },
+    updatePosition: async (posId, updates) => {
+      setPositions((prev) =>
+        prev
+          .map((p) => (p.id === posId ? { ...p, ...updates } : p))
+          .sort((a, b) => a.level - b.level)
+      );
+      return true;
+    },
+    deletePosition: async (posId) => {
+      setPositions((prev) => prev.filter((p) => p.id !== posId));
+      return true;
+    },
+    getPosition: (id) => positions.find((p) => p.id === id),
 
     // API status
     isAPIConfigured: isAPIConfigured(),
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
-}
-
-export function useData() {
-  const context = useContext(DataContext);
-  if (!context) {
-    throw new Error("useData must be used within a DataProvider");
-  }
-  return context;
 }

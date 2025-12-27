@@ -124,3 +124,4 @@ export const updateAbsensi = (id, data) => updateRow(SHEETS.ABSENSI, id, data);
 export const getBelanja = () => getData(SHEETS.BELANJA);
 export const addBelanja = (data) => addRow(SHEETS.BELANJA, data);
 export const updateBelanja = (id, data) => updateRow(SHEETS.BELANJA, id, data);
+

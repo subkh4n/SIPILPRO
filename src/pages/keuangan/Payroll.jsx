@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useData } from "../../context/DataContext";
+import { useData } from "../../context";
 import { useToast } from "../../context/ToastContext";
 import { formatCurrency } from "../../utils/helpers";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
@@ -751,3 +751,4 @@ export default function Payroll() {
     </div>
   );
 }
+

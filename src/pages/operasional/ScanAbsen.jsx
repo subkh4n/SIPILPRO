@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { useData } from "../../context/DataContext";
+import { useData } from "../../context";
 import { useToast } from "../../context/ToastContext";
 import {
   QrCode,
@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 export default function ScanAbsen() {
-  const { workers, projects, attendance, addAttendance } = useData();
+  const { workers, projects, addAttendance } = useData();
   const toast = useToast();
 
   const [isScanning, setIsScanning] = useState(false);
@@ -28,7 +28,6 @@ export default function ScanAbsen() {
   const [lastScan, setLastScan] = useState(null);
   const [error, setError] = useState(null);
   const [selectedProject, setSelectedProject] = useState("");
-  const [todayScans, setTodayScans] = useState([]);
 
   const html5QrCodeRef = useRef(null);
   const scannerContainerId = "qr-reader";
@@ -46,21 +45,21 @@ export default function ScanAbsen() {
     });
   };
 
-  // Load today's scans from localStorage on mount
-  useEffect(() => {
+  // Load today's scans from localStorage with lazy initial state
+  const [todayScans, setTodayScans] = useState(() => {
     const saved = localStorage.getItem("todayScans");
     const savedDate = localStorage.getItem("todayScansDate");
     const today = getTodayString();
 
     if (saved && savedDate === today) {
-      setTodayScans(JSON.parse(saved));
+      return JSON.parse(saved);
     } else {
       // Clear old data if it's a new day
       localStorage.setItem("todayScans", JSON.stringify([]));
       localStorage.setItem("todayScansDate", today);
-      setTodayScans([]);
+      return [];
     }
-  }, []);
+  });
 
   // Save todayScans to localStorage whenever it changes
   useEffect(() => {
@@ -95,7 +94,7 @@ export default function ScanAbsen() {
   };
 
   // Determine next attendance type based on current status
-  const getNextAttendanceType = (currentStatus, lastScan) => {
+  const getNextAttendanceType = (currentStatus) => {
     switch (currentStatus) {
       case "not_checked_in":
         return "checkin";
@@ -131,7 +130,7 @@ export default function ScanAbsen() {
       if (html5QrCodeRef.current) {
         try {
           await html5QrCodeRef.current.stop();
-        } catch (e) {
+        } catch {
           // Ignore stop errors
         }
       }
@@ -246,10 +245,7 @@ export default function ScanAbsen() {
 
     // Check today's status for this employee
     const todayStatus = getEmployeeTodayStatus(employee.id);
-    let attendanceType = getNextAttendanceType(
-      todayStatus.status,
-      todayStatus.lastScan
-    );
+    let attendanceType = getNextAttendanceType(todayStatus.status);
 
     // If already done for the day
     if (attendanceType === "already_done") {
@@ -262,10 +258,6 @@ export default function ScanAbsen() {
       handleStopScan();
       return;
     }
-
-    // Check if this is a checkout and offer "pulang" option
-    const isLastCheckout =
-      todayStatus.scans.length >= 2 && attendanceType === "checkout";
 
     const now = new Date();
     const timeStr = getTimeString();
@@ -315,27 +307,6 @@ export default function ScanAbsen() {
 
     // Stop scanner after successful scan
     handleStopScan();
-  };
-
-  const handleMarkPulang = (employeeId, employeeName) => {
-    const project = projects.find((p) => p.id === selectedProject);
-    const timeStr = getTimeString();
-
-    const scan = {
-      id: Date.now(),
-      employeeId,
-      name: employeeName,
-      time: timeStr,
-      timestamp: new Date().toISOString(),
-      date: getTodayString(),
-      project: project?.name || "-",
-      projectId: selectedProject,
-      type: "pulang",
-      success: true,
-    };
-
-    setTodayScans((prev) => [...prev, scan]);
-    toast.success(`${employeeName} telah ditandai PULANG`);
   };
 
   // Get active projects only
@@ -1183,3 +1154,4 @@ export default function ScanAbsen() {
     </div>
   );
 }
+

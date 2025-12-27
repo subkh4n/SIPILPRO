@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { DataProvider } from "./context/DataContext";
+import { DataProvider } from "./context";
 import { ToastProvider } from "./context/ToastContext";
 import Layout from "./components/Layout";
 
@@ -17,6 +17,9 @@ import TambahPegawai from "./pages/master/TambahPegawai";
 import EditPegawai from "./pages/master/EditPegawai";
 import Vendor from "./pages/master/Vendor";
 import Kalender from "./pages/master/Kalender";
+import GolonganGaji from "./pages/master/GolonganGaji";
+import JamKerja from "./pages/master/JamKerja";
+import Jabatan from "./pages/master/Jabatan";
 
 // Operasional Pages
 import ScanAbsen from "./pages/operasional/ScanAbsen";
@@ -96,6 +99,9 @@ function App() {
               />
               <Route path="/master/proyek" element={<Proyek />} />
               <Route path="/master/vendor" element={<Vendor />} />
+              <Route path="/master/golongan-gaji" element={<GolonganGaji />} />
+              <Route path="/master/jam-kerja" element={<JamKerja />} />
+              <Route path="/master/jabatan" element={<Jabatan />} />
               <Route path="/master/kalender" element={<Kalender />} />
 
               {/* Operasional */}

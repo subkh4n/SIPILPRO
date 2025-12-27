@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useData } from "../../context/DataContext";
+import { useData } from "../../context";
 import { formatCurrency } from "../../utils/helpers";
 import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import {
@@ -456,3 +456,4 @@ export default function BiayaVendor() {
     </div>
   );
 }
+

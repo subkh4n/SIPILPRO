@@ -234,3 +234,4 @@ export const initialPurchases = [
 
 // Saldo kas
 export const initialCashBalance = 50000000;
+

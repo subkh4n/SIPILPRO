@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { useData } from "../../context/DataContext";
+import { useData } from "../../context";
 import { useToast } from "../../context/ToastContext";
 import { formatCurrency } from "../../utils/helpers";
 import { format, parseISO } from "date-fns";
@@ -1185,3 +1185,4 @@ export default function LogAbsensi() {
     </div>
   );
 }
+
