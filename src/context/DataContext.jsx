@@ -2,19 +2,16 @@ import { useState, useEffect, useCallback } from "react";
 import * as api from "../services/api";
 import { DataContext } from "./DataContextInstance";
 
-// Fallback mock data (used when API is not configured)
-import {
-  projects as mockProjects,
-  workers as mockWorkers,
-  vendors as mockVendors,
-  initialAttendance as mockAttendance,
-  initialPurchases as mockPurchases,
-  initialCashBalance,
-} from "../data/mockData";
+// Initial cash balance
+const initialCashBalance = 50000000;
 
 // Check if API is configured
 const isAPIConfigured = () => {
-  return api.API_URL && !api.API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT");
+  return (
+    api.API_URL &&
+    api.API_URL.length > 0 &&
+    !api.API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")
+  );
 };
 
 export function DataProvider({ children }) {
@@ -42,39 +39,30 @@ export function DataProvider({ children }) {
     setError(null);
 
     try {
-      if (isAPIConfigured()) {
-        // Fetch from Google Sheets
-        const data = await api.getAllSheetsData();
-
-        setProjects(data.proyek || []);
-        setWorkers(data.tukang || []);
-        setVendors(data.vendor || []);
-        setAttendance(data.absensi || []);
-        setPurchases(data.belanja || []);
-
-        // Calculate cash balance from paid purchases
-        const paidTotal = (data.belanja || [])
-          .filter((p) => p.status === "paid")
-          .reduce((sum, p) => sum + (parseFloat(p.total) || 0), 0);
-        setCashBalance(initialCashBalance - paidTotal);
-      } else {
-        // Use mock data
-        console.log("API not configured, using mock data");
-        setProjects(mockProjects);
-        setWorkers(mockWorkers);
-        setVendors(mockVendors);
-        setAttendance(mockAttendance);
-        setPurchases(mockPurchases);
+      if (!isAPIConfigured()) {
+        throw new Error(
+          "API belum dikonfigurasi. Silakan set VITE_API_URL di environment variables."
+        );
       }
+
+      // Fetch from Google Sheets
+      const data = await api.getAllSheetsData();
+
+      setProjects(data.proyek || []);
+      setWorkers(data.tukang || []);
+      setVendors(data.vendor || []);
+      setAttendance(data.absensi || []);
+      setPurchases(data.belanja || []);
+
+      // Calculate cash balance from paid purchases
+      const paidTotal = (data.belanja || [])
+        .filter((p) => p.status === "paid")
+        .reduce((sum, p) => sum + (parseFloat(p.total) || 0), 0);
+      setCashBalance(initialCashBalance - paidTotal);
     } catch (err) {
       console.error("Failed to load data:", err);
       setError(err.message);
-      // Fallback to mock data on error
-      setProjects(mockProjects);
-      setWorkers(mockWorkers);
-      setVendors(mockVendors);
-      setAttendance(mockAttendance);
-      setPurchases(mockPurchases);
+      // No fallback - show error instead
     } finally {
       setLoading(false);
     }
