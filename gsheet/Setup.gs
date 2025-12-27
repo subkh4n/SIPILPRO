@@ -278,6 +278,31 @@ function addSampleDataForSheet(sheet, configKey) {
       ]);
       sheet.appendRow(["hol-004", "2024-12-25", "Natal", "national"]);
       break;
+
+    // ============================================
+    // MASTER DATA SAMPLE
+    // ============================================
+
+    case "MASTER_JABATAN":
+      sheet.appendRow(["jbt-001", "Mandor", "Kepala tukang yang mengawasi pekerjaan", "active"]);
+      sheet.appendRow(["jbt-002", "Tukang Batu", "Ahli pemasangan batu dan semen", "active"]);
+      sheet.appendRow(["jbt-003", "Tukang Kayu", "Ahli pengerjaan kayu dan kusen", "active"]);
+      sheet.appendRow(["jbt-004", "Tukang Besi", "Ahli pembesian dan rangka", "active"]);
+      sheet.appendRow(["jbt-005", "Helper", "Pembantu tukang", "active"]);
+      break;
+
+    case "MASTER_GOLONGAN":
+      sheet.appendRow(["gol-001", "Golongan I", 2500000, 500000, "active"]);
+      sheet.appendRow(["gol-002", "Golongan II", 3000000, 750000, "active"]);
+      sheet.appendRow(["gol-003", "Golongan III", 3500000, 1000000, "active"]);
+      sheet.appendRow(["gol-004", "Golongan IV", 4500000, 1500000, "active"]);
+      break;
+
+    case "MASTER_JAM_MASUK":
+      sheet.appendRow(["jam-001", "Shift Pagi", "07:00", "16:00", 15, "active"]);
+      sheet.appendRow(["jam-002", "Shift Siang", "08:00", "17:00", 15, "active"]);
+      sheet.appendRow(["jam-003", "Shift Full", "07:00", "17:00", 10, "active"]);
+      break;
   }
 }
 

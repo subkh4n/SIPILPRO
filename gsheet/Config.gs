@@ -19,6 +19,10 @@ const CONFIG = {
     BELANJA: "Belanja",
     KALENDER: "Kalender",
     SETTINGS: "Settings",
+    // Master Data Sheets
+    MASTER_JABATAN: "MasterJabatan",
+    MASTER_GOLONGAN: "MasterGolongan",
+    MASTER_JAM_MASUK: "MasterJamMasuk",
   },
 
   // Column Headers per Sheet
@@ -65,6 +69,10 @@ const CONFIG = {
       "paidDate",
     ],
     KALENDER: ["id", "date", "name", "type"],
+    // Master Data Headers
+    MASTER_JABATAN: ["id", "nama", "deskripsi", "status"],
+    MASTER_GOLONGAN: ["id", "golongan", "gajiPokok", "tunjangan", "status"],
+    MASTER_JAM_MASUK: ["id", "nama", "jamMasuk", "jamKeluar", "toleransiMenit", "status"],
   },
 
   // Status Options

@@ -132,6 +132,14 @@ function routeGetRequest(action, params) {
     case "checkSetupStatus":
       return ApiResponse.success(checkSetupStatus());
 
+    // ---- Master Data ----
+    case "getMasterJabatan":
+      return MasterDataService.getAllJabatan();
+    case "getMasterGolongan":
+      return MasterDataService.getAllGolongan();
+    case "getMasterJamMasuk":
+      return MasterDataService.getAllJamMasuk();
+
     default:
       return ApiResponse.error(`Unknown action: ${action}`);
   }
@@ -198,6 +206,26 @@ function routePostRequest(action, params, data) {
     case "uploadFotoPegawai":
       return TukangService.uploadFoto(params.id, data.base64, data.mimeType);
 
+    // ---- Master Data ----
+    case "addMasterJabatan":
+      return MasterDataService.addJabatan(data);
+    case "updateMasterJabatan":
+      return MasterDataService.updateJabatan(params.id, data);
+    case "deleteMasterJabatan":
+      return MasterDataService.deleteJabatan(params.id);
+    case "addMasterGolongan":
+      return MasterDataService.addGolongan(data);
+    case "updateMasterGolongan":
+      return MasterDataService.updateGolongan(params.id, data);
+    case "deleteMasterGolongan":
+      return MasterDataService.deleteGolongan(params.id);
+    case "addMasterJamMasuk":
+      return MasterDataService.addJamMasuk(data);
+    case "updateMasterJamMasuk":
+      return MasterDataService.updateJamMasuk(params.id, data);
+    case "deleteMasterJamMasuk":
+      return MasterDataService.deleteJamMasuk(params.id);
+
     // ---- Generic CRUD (for backward compatibility) ----
     case "addRow":
       return handleGenericAdd(params.sheet, data);
@@ -227,6 +255,10 @@ function getAllSheetsData() {
     absensi: AbsensiService.getAll().data || [],
     belanja: BelanjaService.getAll().data || [],
     kalender: KalenderService.getAll().data || [],
+    // Master Data
+    masterJabatan: MasterDataService.getAllJabatan().data || [],
+    masterGolongan: MasterDataService.getAllGolongan().data || [],
+    masterJamMasuk: MasterDataService.getAllJamMasuk().data || [],
   });
 }
 

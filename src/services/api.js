@@ -9,6 +9,10 @@ const SHEETS = {
   VENDOR: "Vendor",
   ABSENSI: "Absensi",
   BELANJA: "Belanja",
+  // Master Data
+  MASTER_JABATAN: "MasterJabatan",
+  MASTER_GOLONGAN: "MasterGolongan",
+  MASTER_JAM_MASUK: "MasterJamMasuk",
 };
 
 /**
@@ -125,3 +129,30 @@ export const getBelanja = () => getData(SHEETS.BELANJA);
 export const addBelanja = (data) => addRow(SHEETS.BELANJA, data);
 export const updateBelanja = (id, data) => updateRow(SHEETS.BELANJA, id, data);
 
+// ============================================
+// MASTER DATA API FUNCTIONS
+// ============================================
+
+// Master Jabatan
+export const getMasterJabatan = () => getData(SHEETS.MASTER_JABATAN);
+export const addMasterJabatan = (data) => addRow(SHEETS.MASTER_JABATAN, data);
+export const updateMasterJabatan = (id, data) =>
+  updateRow(SHEETS.MASTER_JABATAN, id, data);
+export const deleteMasterJabatan = (id) => deleteRow(SHEETS.MASTER_JABATAN, id);
+
+// Master Golongan Gaji
+export const getMasterGolongan = () => getData(SHEETS.MASTER_GOLONGAN);
+export const addMasterGolongan = (data) => addRow(SHEETS.MASTER_GOLONGAN, data);
+export const updateMasterGolongan = (id, data) =>
+  updateRow(SHEETS.MASTER_GOLONGAN, id, data);
+export const deleteMasterGolongan = (id) =>
+  deleteRow(SHEETS.MASTER_GOLONGAN, id);
+
+// Master Jam Masuk
+export const getMasterJamMasuk = () => getData(SHEETS.MASTER_JAM_MASUK);
+export const addMasterJamMasuk = (data) =>
+  addRow(SHEETS.MASTER_JAM_MASUK, data);
+export const updateMasterJamMasuk = (id, data) =>
+  updateRow(SHEETS.MASTER_JAM_MASUK, id, data);
+export const deleteMasterJamMasuk = (id) =>
+  deleteRow(SHEETS.MASTER_JAM_MASUK, id);

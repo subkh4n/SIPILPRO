@@ -53,6 +53,12 @@ export function DataProvider({ children }) {
       setVendors(data.vendor || []);
       setAttendance(data.absensi || []);
       setPurchases(data.belanja || []);
+      setHolidays(data.kalender || []);
+
+      // Master Data
+      if (data.masterJabatan) setPositions(data.masterJabatan);
+      if (data.masterGolongan) setSalaryGrades(data.masterGolongan);
+      if (data.masterJamMasuk) setWorkSchedules(data.masterJamMasuk);
 
       // Calculate cash balance from paid purchases
       const paidTotal = (data.belanja || [])
